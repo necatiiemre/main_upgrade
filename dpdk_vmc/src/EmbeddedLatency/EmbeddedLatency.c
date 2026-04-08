@@ -1700,17 +1700,11 @@ void ate_mode_selection(void) {
 
     if (ask_question("Do you want to continue in ATE test mode?")) {
         printf("\n[ATE] ATE test mode selected.\n");
-        printf("[ATE] Sending Cumulus switch ATE configuration...\n\n");
 
-        int ate_result = ate_configure_cumulus();
-        if (ate_result != 0) {
-            printf("\n[ATE] ERROR: Cumulus ATE configuration failed!\n");
-            printf("[ATE] Program continues but ATE config could not be applied.\n\n");
-        } else {
-            printf("\n[ATE] Cumulus ATE configuration applied successfully.\n\n");
-        }
+        // No Cumulus ATE reconfiguration needed for VMC -
+        // the initial Cumulus config from configureSequence is sufficient.
 
-        // Ask for ATE test cables after config is sent
+        // Ask for ATE test cables
         while (!ask_question("Are the ATE test mode cables installed?")) {
             printf("\nPlease install the ATE test mode cables and try again.\n\n");
         }
