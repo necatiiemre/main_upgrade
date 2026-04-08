@@ -76,6 +76,8 @@ bool Vmc::configureSequence()
     // Record Unit Power On Time when PSU output is enabled
     g_ReportManager.recordUnitPowerOnTime();
 
+    sleep(30);
+
     sleep(2);
     if (!g_cumulus.deployNetworkInterfaces(SSHDeployer::getPrebuiltRoot() + "/CumulusInterfaces/VMC/interfaces"))
     {
