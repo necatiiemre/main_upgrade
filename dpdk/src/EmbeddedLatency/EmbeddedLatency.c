@@ -1633,32 +1633,51 @@ int emb_latency_full_sequence(void) {
     // ==========================================
     printf("=== ATE Test Mode Selection ===\n\n");
 
-    if (ask_question("Do you want to continue in ATE test mode?")) {
-        printf("\n[ATE] ATE test mode selected.\n");
-        printf("[ATE] Sending Cumulus switch ATE configuration...\n\n");
+    while (1) {
+        if (ask_question("Do you want to continue in ATE test mode?")) {
+            printf("\n[ATE] ATE test mode selected.\n");
+            printf("[ATE] Sending Cumulus switch ATE configuration...\n\n");
 
-        int ate_result = ate_configure_cumulus();
-        if (ate_result != 0) {
-            printf("\n[ATE] ERROR: Cumulus ATE configuration failed!\n");
-            printf("[ATE] Program continues but ATE config could not be applied.\n\n");
-        } else {
-            printf("\n[ATE] Cumulus ATE configuration applied successfully.\n\n");
+            int ate_result = ate_configure_cumulus();
+            if (ate_result != 0) {
+                printf("\n[ATE] ERROR: Cumulus ATE configuration failed!\n");
+                printf("[ATE] Program continues but ATE config could not be applied.\n\n");
+            } else {
+                printf("\n[ATE] Cumulus ATE configuration applied successfully.\n\n");
+            }
+
+            // Ask for ATE test cables - max 3 attempts before returning to ATE selection
+            int cable_retry_count = 0;
+            bool cables_installed = false;
+
+            while (cable_retry_count < 3) {
+                if (ask_question("Are the ATE test mode cables installed?")) {
+                    cables_installed = true;
+                    break;
+                }
+                cable_retry_count++;
+                if (cable_retry_count < 3) {
+                    printf("\nPlease install the ATE test mode cables and try again.\n\n");
+                }
+            }
+
+            if (!cables_installed) {
+                printf("\n[ATE] Cable installation declined 3 times. Returning to ATE mode selection.\n\n");
+                continue;  // Go back to ATE mode question
+            }
+
+            g_ate_mode = true;
+
+            // Unit test is skipped in ATE mode
+            printf("[ATE] Skipping unit test - continuing in ATE test mode.\n\n");
+
+            g_emb_latency.test_completed = true;
+            g_emb_latency.test_passed = (total_fails == 0);
+
+            return total_fails;
         }
 
-        // Ask for ATE test cables after config is sent
-        while (!ask_question("Are the ATE test mode cables installed?")) {
-            printf("\nPlease install the ATE test mode cables and try again.\n\n");
-        }
-
-        g_ate_mode = true;
-
-        // Unit test is skipped in ATE mode
-        printf("[ATE] Skipping unit test - continuing in ATE test mode.\n\n");
-
-        g_emb_latency.test_completed = true;
-        g_emb_latency.test_passed = (total_fails == 0);
-
-        return total_fails;
+        break;  // User doesn't want ATE mode
     }
 
     printf("Continuing in normal test mode.\n\n");

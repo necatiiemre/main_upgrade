@@ -1859,27 +1859,51 @@ int emb_latency_full_sequence(void) {
     // ==========================================
     printf("=== ATE Test Mode Selection ===\n\n");
 
-    if (ask_question("ATE test modunda devam etmek ister misin?")) {
-        printf("\n[ATE] ATE test modu secildi.\n");
-        printf("[ATE] Cumulus switch ATE konfigurasyonu gonderiliyor...\n\n");
+    while (1) {
+        if (ask_question("ATE test modunda devam etmek ister misin?")) {
+            printf("\n[ATE] ATE test modu secildi.\n");
+            printf("[ATE] Cumulus switch ATE konfigurasyonu gonderiliyor...\n\n");
 
-        int ate_result = ate_configure_cumulus();
-        if (ate_result != 0) {
-            printf("\n[ATE] HATA: Cumulus ATE konfigurasyonu basarisiz!\n");
-            printf("[ATE] Program devam ediyor ancak ATE config uygulanamadi.\n\n");
-        } else {
-            printf("\n[ATE] Cumulus ATE konfigurasyonu basariyla uygulandi.\n\n");
+            int ate_result = ate_configure_cumulus();
+            if (ate_result != 0) {
+                printf("\n[ATE] HATA: Cumulus ATE konfigurasyonu basarisiz!\n");
+                printf("[ATE] Program devam ediyor ancak ATE config uygulanamadi.\n\n");
+            } else {
+                printf("\n[ATE] Cumulus ATE konfigurasyonu basariyla uygulandi.\n\n");
+            }
+
+            // ATE test kablolarini sor - en fazla 3 deneme, sonra ATE secim sorusuna don
+            int cable_retry_count = 0;
+            bool cables_installed = false;
+
+            while (cable_retry_count < 3) {
+                if (ask_question("ATE test modu kablolari takildi mi?")) {
+                    cables_installed = true;
+                    break;
+                }
+                cable_retry_count++;
+                if (cable_retry_count < 3) {
+                    printf("\nLutfen ATE test modu kablolarini takip tekrar deneyin.\n\n");
+                }
+            }
+
+            if (!cables_installed) {
+                printf("\n[ATE] Kablo kurulumu 3 kez reddedildi. ATE modu secim sorusuna donuluyor.\n\n");
+                continue;  // ATE modu sorusuna geri don
+            }
+
+            g_ate_mode = true;
+
+            // ATE modunda unit test atlanir
+            printf("[ATE] Unit test atlaniyor - ATE test modunda devam ediliyor.\n\n");
+
+            g_emb_latency.test_completed = true;
+            g_emb_latency.test_passed = (total_fails == 0);
+
+            return total_fails;
         }
 
-        g_ate_mode = true;
-
-        // ATE modunda unit test atlanir
-        printf("[ATE] Unit test atlaniyor - ATE test modunda devam ediliyor.\n\n");
-
-        g_emb_latency.test_completed = true;
-        g_emb_latency.test_passed = (total_fails == 0);
-
-        return total_fails;
+        break;  // Kullanici ATE modu istemiyor
     }
 
     printf("Normal test modunda devam ediliyor.\n\n");
