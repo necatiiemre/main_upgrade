@@ -33,20 +33,20 @@ void port_vlans_load_config(bool ate_mode)
 // Global RX statistics per port
 struct rx_stats rx_stats_per_port[MAX_PORTS];
 
-#if STATS_MODE_DTN
-// DTN per-port statistics
-struct dtn_port_stats dtn_stats[DTN_PORT_COUNT];
+#if STATS_MODE_VMC
+// VMC per-port statistics
+struct vmc_port_stats vmc_stats[VMC_PORT_COUNT];
 
-// DTN port mapping table
-struct dtn_port_map_entry dtn_port_map[DTN_PORT_COUNT] = DTN_PORT_MAP_INIT;
+// VMC port mapping table
+struct vmc_port_map_entry vmc_port_map[VMC_PORT_COUNT] = VMC_PORT_MAP_INIT;
 
-// VLAN → DTN port fast lookup table
-uint8_t vlan_to_dtn_port[DTN_VLAN_LOOKUP_SIZE];
+// VLAN → VMC port fast lookup table
+uint8_t vlan_to_vmc_port[VMC_VLAN_LOOKUP_SIZE];
 
 // VLAN flow rule handles (for cleanup)
-#define DTN_MAX_FLOW_RULES_PER_PORT 4
-static struct rte_flow *dtn_flow_handles[MAX_PORTS][DTN_MAX_FLOW_RULES_PER_PORT] = {{NULL}};
-#endif /* STATS_MODE_DTN */
+#define VMC_MAX_FLOW_RULES_PER_PORT 4
+static struct rte_flow *vmc_flow_handles[MAX_PORTS][VMC_MAX_FLOW_RULES_PER_PORT] = {{NULL}};
+#endif /* STATS_MODE_VMC */
 
 // Global VL-ID sequence trackers per port (for RX validation)
 struct port_vl_tracker port_vl_trackers[MAX_PORTS];
@@ -402,83 +402,83 @@ void init_rx_stats(void)
     printf("RX statistics and VL-ID sequence trackers initialized for all ports\n");
 }
 
-#if STATS_MODE_DTN
+#if STATS_MODE_VMC
 // ==========================================
-// DTN PORT MAPPING & STATISTICS INIT
+// VMC PORT MAPPING & STATISTICS INIT
 // ==========================================
 
-void init_dtn_port_map(void)
+void init_vmc_port_map(void)
 {
-    // Fill the VLAN → DTN port lookup table
-    memset(vlan_to_dtn_port, DTN_VLAN_INVALID, sizeof(vlan_to_dtn_port));
+    // Fill the VLAN → VMC port lookup table
+    memset(vlan_to_vmc_port, VMC_VLAN_INVALID, sizeof(vlan_to_vmc_port));
 
-    for (int i = 0; i < DTN_DPDK_PORT_COUNT; i++) {
-        // DTN TX VLAN (DTN→Server, seen on server RX)
-        if (dtn_port_map[i].tx_vlan < DTN_VLAN_LOOKUP_SIZE) {
-            vlan_to_dtn_port[dtn_port_map[i].tx_vlan] = (uint8_t)i;
+    for (int i = 0; i < VMC_DPDK_PORT_COUNT; i++) {
+        // VMC TX VLAN (VMC→Server, seen on server RX)
+        if (vmc_port_map[i].tx_vlan < VMC_VLAN_LOOKUP_SIZE) {
+            vlan_to_vmc_port[vmc_port_map[i].tx_vlan] = (uint8_t)i;
         }
-        // DTN RX VLAN (Server→DTN, used in server TX)
+        // VMC RX VLAN (Server→VMC, used in server TX)
         // These VLANs should also be in the lookup (can be used in TX worker)
-        if (dtn_port_map[i].rx_vlan < DTN_VLAN_LOOKUP_SIZE) {
+        if (vmc_port_map[i].rx_vlan < VMC_VLAN_LOOKUP_SIZE) {
             // We could also put rx_vlan in a separate lookup, tx_vlan is sufficient for now
             // because PRBS check is done on server RX = via tx_vlan
         }
     }
 
-    printf("\n=== DTN Port Mapping Initialized ===\n");
-    printf("DTN Ports: %d (DPDK: %d, Raw: 2)\n", DTN_PORT_COUNT, DTN_DPDK_PORT_COUNT);
-    printf("VLAN → DTN Port lookup table built\n");
+    printf("\n=== VMC Port Mapping Initialized ===\n");
+    printf("VMC Ports: %d (DPDK: %d, Raw: 2)\n", VMC_PORT_COUNT, VMC_DPDK_PORT_COUNT);
+    printf("VLAN → VMC Port lookup table built\n");
 
     // Print summary table
-    printf("\n  DTN Port | DTN RX (Srv TX)      | DTN TX (Srv RX)\n");
+    printf("\n  VMC Port | VMC RX (Srv TX)      | VMC TX (Srv RX)\n");
     printf("  ---------+----------------------+----------------------\n");
-    for (int i = 0; i < DTN_DPDK_PORT_COUNT; i++) {
+    for (int i = 0; i < VMC_DPDK_PORT_COUNT; i++) {
         printf("    %2d     | SrvPort%u Q%u VLAN%-3u | SrvPort%u Q%u VLAN%-3u\n",
-               dtn_port_map[i].dtn_port_id,
-               dtn_port_map[i].rx_server_port, dtn_port_map[i].rx_server_queue,
-               dtn_port_map[i].rx_vlan,
-               dtn_port_map[i].tx_server_port, dtn_port_map[i].tx_server_queue,
-               dtn_port_map[i].tx_vlan);
+               vmc_port_map[i].vmc_port_id,
+               vmc_port_map[i].rx_server_port, vmc_port_map[i].rx_server_queue,
+               vmc_port_map[i].rx_vlan,
+               vmc_port_map[i].tx_server_port, vmc_port_map[i].tx_server_queue,
+               vmc_port_map[i].tx_vlan);
     }
     printf("    32     | Port 12 (1G)         | Port 12 (1G)\n");
     printf("    33     | Port 13 (100M)       | Port 13 (100M)\n");
     printf("================================================\n\n");
 }
 
-void init_dtn_stats(void)
+void init_vmc_stats(void)
 {
-    for (int i = 0; i < DTN_PORT_COUNT; i++) {
-        rte_atomic64_init(&dtn_stats[i].good_pkts);
-        rte_atomic64_init(&dtn_stats[i].bad_pkts);
-        rte_atomic64_init(&dtn_stats[i].bit_errors);
-        rte_atomic64_init(&dtn_stats[i].lost_pkts);
-        rte_atomic64_init(&dtn_stats[i].out_of_order_pkts);
-        rte_atomic64_init(&dtn_stats[i].duplicate_pkts);
-        rte_atomic64_init(&dtn_stats[i].short_pkts);
-        rte_atomic64_init(&dtn_stats[i].total_rx_pkts);
+    for (int i = 0; i < VMC_PORT_COUNT; i++) {
+        rte_atomic64_init(&vmc_stats[i].good_pkts);
+        rte_atomic64_init(&vmc_stats[i].bad_pkts);
+        rte_atomic64_init(&vmc_stats[i].bit_errors);
+        rte_atomic64_init(&vmc_stats[i].lost_pkts);
+        rte_atomic64_init(&vmc_stats[i].out_of_order_pkts);
+        rte_atomic64_init(&vmc_stats[i].duplicate_pkts);
+        rte_atomic64_init(&vmc_stats[i].short_pkts);
+        rte_atomic64_init(&vmc_stats[i].total_rx_pkts);
     }
-    printf("DTN port statistics initialized for %d ports\n", DTN_PORT_COUNT);
+    printf("VMC port statistics initialized for %d ports\n", VMC_PORT_COUNT);
 }
 
 // ==========================================
-// DTN VLAN-BASED FLOW STEERING
+// VMC VLAN-BASED FLOW STEERING
 // ==========================================
 // Steers each RX VLAN to its corresponding queue (1:1 mapping)
-// This way HW per-queue stats = per-VLAN = per-DTN port stats
+// This way HW per-queue stats = per-VLAN = per-VMC port stats
 
-int dtn_flow_rules_install(uint16_t port_id)
+int vmc_flow_rules_install(uint16_t port_id)
 {
     struct rte_flow_error error;
     int installed = 0;
 
     // How many RX VLANs does this port have?
     uint16_t rx_vlan_count = port_vlans[port_id].rx_vlan_count;
-    if (rx_vlan_count == 0 || rx_vlan_count > DTN_MAX_FLOW_RULES_PER_PORT) {
-        printf("DTN Flow: Port %u has %u RX VLANs, skipping\n", port_id, rx_vlan_count);
+    if (rx_vlan_count == 0 || rx_vlan_count > VMC_MAX_FLOW_RULES_PER_PORT) {
+        printf("VMC Flow: Port %u has %u RX VLANs, skipping\n", port_id, rx_vlan_count);
         return 0;
     }
 
-    printf("DTN Flow: Installing VLAN→Queue rules on Port %u (%u VLANs)...\n",
+    printf("VMC Flow: Installing VLAN→Queue rules on Port %u (%u VLANs)...\n",
            port_id, rx_vlan_count);
 
     for (uint16_t q = 0; q < rx_vlan_count; q++) {
@@ -530,7 +530,7 @@ int dtn_flow_rules_install(uint16_t port_id)
         // Validate + Create
         int ret = rte_flow_validate(port_id, &attr, pattern, action, &error);
         if (ret != 0) {
-            printf("DTN Flow: Port %u VLAN %u validate failed: %s\n",
+            printf("VMC Flow: Port %u VLAN %u validate failed: %s\n",
                    port_id, vlan_id,
                    error.message ? error.message : "unknown");
             continue;
@@ -538,34 +538,34 @@ int dtn_flow_rules_install(uint16_t port_id)
 
         struct rte_flow *flow = rte_flow_create(port_id, &attr, pattern, action, &error);
         if (!flow) {
-            printf("DTN Flow: Port %u VLAN %u create failed: %s\n",
+            printf("VMC Flow: Port %u VLAN %u create failed: %s\n",
                    port_id, vlan_id,
                    error.message ? error.message : "unknown");
             continue;
         }
 
-        dtn_flow_handles[port_id][q] = flow;
+        vmc_flow_handles[port_id][q] = flow;
         installed++;
         printf("  VLAN %u → Queue %u\n", vlan_id, q);
     }
 
-    printf("DTN Flow: Port %u: %d/%u rules installed\n", port_id, installed, rx_vlan_count);
+    printf("VMC Flow: Port %u: %d/%u rules installed\n", port_id, installed, rx_vlan_count);
     return (installed == rx_vlan_count) ? 0 : -1;
 }
 
-void dtn_flow_rules_remove(uint16_t port_id)
+void vmc_flow_rules_remove(uint16_t port_id)
 {
     if (port_id >= MAX_PORTS) return;
 
-    for (int q = 0; q < DTN_MAX_FLOW_RULES_PER_PORT; q++) {
-        if (dtn_flow_handles[port_id][q]) {
+    for (int q = 0; q < VMC_MAX_FLOW_RULES_PER_PORT; q++) {
+        if (vmc_flow_handles[port_id][q]) {
             struct rte_flow_error error;
-            rte_flow_destroy(port_id, dtn_flow_handles[port_id][q], &error);
-            dtn_flow_handles[port_id][q] = NULL;
+            rte_flow_destroy(port_id, vmc_flow_handles[port_id][q], &error);
+            vmc_flow_handles[port_id][q] = NULL;
         }
     }
 }
-#endif /* STATS_MODE_DTN */
+#endif /* STATS_MODE_VMC */
 
 // ==========================================
 // VLAN CONFIGURATION FUNCTIONS
@@ -815,8 +815,8 @@ int init_port_txrx(uint16_t port_id, struct txrx_config *config)
         return ret;
     }
 
-#if STATS_MODE_DTN
-    // DTN mode: RSS disabled, rte_flow VLAN steering will be used (after port start)
+#if STATS_MODE_VMC
+    // VMC mode: RSS disabled, rte_flow VLAN steering will be used (after port start)
     if (config->nb_rx_queues > 1)
     {
         // We still enable RSS because fallback is needed for packets not matching rte_flow
@@ -825,7 +825,7 @@ int init_port_txrx(uint16_t port_id, struct txrx_config *config)
         rss_hf &= dev_info.flow_type_rss_offloads;
         port_conf.rx_adv_conf.rss_conf.rss_key = NULL;
         port_conf.rx_adv_conf.rss_conf.rss_hf = rss_hf;
-        printf("Port %u DTN mode: RSS as fallback, VLAN flow steering will be installed\n", port_id);
+        printf("Port %u VMC mode: RSS as fallback, VLAN flow steering will be installed\n", port_id);
     }
     else
     {
@@ -898,14 +898,14 @@ int init_port_txrx(uint16_t port_id, struct txrx_config *config)
         return ret;
     }
 
-#if STATS_MODE_DTN
-    // DTN mode: Set up VLAN-based flow steering (after port start)
+#if STATS_MODE_VMC
+    // VMC mode: Set up VLAN-based flow steering (after port start)
     if (config->nb_rx_queues > 1)
     {
-        printf("Port %u: Installing DTN VLAN→Queue flow rules...\n", port_id);
-        int flow_ret = dtn_flow_rules_install(port_id);
+        printf("Port %u: Installing VMC VLAN→Queue flow rules...\n", port_id);
+        int flow_ret = vmc_flow_rules_install(port_id);
         if (flow_ret != 0) {
-            printf("Warning: DTN flow rules incomplete on port %u, falling back to RSS\n", port_id);
+            printf("Warning: VMC flow rules incomplete on port %u, falling back to RSS\n", port_id);
         }
 
         // Still configure RETA (fallback in case of flow rule miss)
@@ -1362,12 +1362,12 @@ int rx_worker(void *arg)
     uint64_t local_external = 0;  // External packets (VL-ID outside expected range)
     const uint32_t FLUSH = 131072;
 
-#if STATS_MODE_DTN
-    // In DTN mode: queue_id -> VLAN -> DTN port (1:1 mapping, flow steering active)
+#if STATS_MODE_VMC
+    // In VMC mode: queue_id -> VLAN -> VMC port (1:1 mapping, flow steering active)
     const uint16_t rx_vlan_for_queue = port_vlans[params->port_id].rx_vlans[params->queue_id];
-    const uint8_t my_dtn_port = (rx_vlan_for_queue < DTN_VLAN_LOOKUP_SIZE)
-                                    ? vlan_to_dtn_port[rx_vlan_for_queue]
-                                    : DTN_VLAN_INVALID;
+    const uint8_t my_vmc_port = (rx_vlan_for_queue < VMC_VLAN_LOOKUP_SIZE)
+                                    ? vlan_to_vmc_port[rx_vlan_for_queue]
+                                    : VMC_VLAN_INVALID;
 #endif
 
     bool first_good = false, first_bad = false;
@@ -1582,17 +1582,17 @@ int rx_worker(void *arg)
                 rte_atomic64_add(&rx_stats_per_port[params->port_id].short_pkts, local_short);
                 rte_atomic64_add(&rx_stats_per_port[params->port_id].external_pkts, local_external);
 
-#if STATS_MODE_DTN
-                // DTN per-port PRBS stats (queue = VLAN = DTN port)
-                if (my_dtn_port != DTN_VLAN_INVALID) {
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].total_rx_pkts, local_rx);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].good_pkts, local_good);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].bad_pkts, local_bad);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].bit_errors, local_bits);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].lost_pkts, local_lost);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].out_of_order_pkts, local_ooo);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].duplicate_pkts, local_dup);
-                    rte_atomic64_add(&dtn_stats[my_dtn_port].short_pkts, local_short);
+#if STATS_MODE_VMC
+                // VMC per-port PRBS stats (queue = VLAN = VMC port)
+                if (my_vmc_port != VMC_VLAN_INVALID) {
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].total_rx_pkts, local_rx);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].good_pkts, local_good);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].bad_pkts, local_bad);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].bit_errors, local_bits);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].lost_pkts, local_lost);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].out_of_order_pkts, local_ooo);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].duplicate_pkts, local_dup);
+                    rte_atomic64_add(&vmc_stats[my_vmc_port].short_pkts, local_short);
                 }
 #endif
                 local_rx = local_good = local_bad = local_bits = 0;
@@ -1614,16 +1614,16 @@ int rx_worker(void *arg)
         rte_atomic64_add(&rx_stats_per_port[params->port_id].short_pkts, local_short);
         rte_atomic64_add(&rx_stats_per_port[params->port_id].external_pkts, local_external);
 
-#if STATS_MODE_DTN
-        if (my_dtn_port != DTN_VLAN_INVALID) {
-            rte_atomic64_add(&dtn_stats[my_dtn_port].total_rx_pkts, local_rx);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].good_pkts, local_good);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].bad_pkts, local_bad);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].bit_errors, local_bits);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].lost_pkts, local_lost);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].out_of_order_pkts, local_ooo);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].duplicate_pkts, local_dup);
-            rte_atomic64_add(&dtn_stats[my_dtn_port].short_pkts, local_short);
+#if STATS_MODE_VMC
+        if (my_vmc_port != VMC_VLAN_INVALID) {
+            rte_atomic64_add(&vmc_stats[my_vmc_port].total_rx_pkts, local_rx);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].good_pkts, local_good);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].bad_pkts, local_bad);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].bit_errors, local_bits);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].lost_pkts, local_lost);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].out_of_order_pkts, local_ooo);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].duplicate_pkts, local_dup);
+            rte_atomic64_add(&vmc_stats[my_vmc_port].short_pkts, local_short);
         }
 #endif
     }
@@ -1632,9 +1632,9 @@ int rx_worker(void *arg)
     // CALCULATE LOST PACKETS (watermark-based)
     // Lost = (max_seq + 1) - pkt_count for each VL-ID
     // ==========================================
-#if STATS_MODE_DTN
-    // DTN mode: Each queue calculates lost for its own VL-ID range
-    // (With flow steering, each queue = 1 VLAN = 1 DTN port, ranges do not overlap)
+#if STATS_MODE_VMC
+    // VMC mode: Each queue calculates lost for its own VL-ID range
+    // (With flow steering, each queue = 1 VLAN = 1 VMC port, ranges do not overlap)
     {
         uint64_t queue_lost = 0;
         uint16_t vl_start = get_rx_vl_id_range_start(params->port_id, params->queue_id);
@@ -1664,12 +1664,12 @@ int rx_worker(void *arg)
         if (queue_lost > 0)
         {
             rte_atomic64_add(&rx_stats_per_port[params->port_id].lost_pkts, queue_lost);
-            if (my_dtn_port != DTN_VLAN_INVALID) {
-                rte_atomic64_add(&dtn_stats[my_dtn_port].lost_pkts, queue_lost);
+            if (my_vmc_port != VMC_VLAN_INVALID) {
+                rte_atomic64_add(&vmc_stats[my_vmc_port].lost_pkts, queue_lost);
             }
-            printf("RX Worker Port %u Q%u (DTN %u): %lu lost packets (VL-ID %u-%u)\n",
+            printf("RX Worker Port %u Q%u (VMC %u): %lu lost packets (VL-ID %u-%u)\n",
                    params->port_id, params->queue_id,
-                   my_dtn_port != DTN_VLAN_INVALID ? my_dtn_port : 0xFF,
+                   my_vmc_port != VMC_VLAN_INVALID ? my_vmc_port : 0xFF,
                    queue_lost, vl_start, vl_end - 1);
         }
     }

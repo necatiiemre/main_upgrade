@@ -11,14 +11,14 @@ NUM_RX_CORES ?= 4
 TARGET_GBPS ?= 3.74
 USE_VLAN ?=1
 
-# DTN port-based statistics mode (1=DTN 34-port table, 0=Server 8-port table)
-STATS_MODE_DTN ?= 1
+# VMC port-based statistics mode (1=VMC 34-port table, 0=Server 8-port table)
+STATS_MODE_VMC ?= 1
 
 # ATE root directory (auto-detected at build time)
 ATE_ROOT := $(shell pwd)/AteCumulus/AteTestMode
 
 # Compiler flags
-CFLAGS = -O3 -march=native -flto -ffast-math -funroll-loops -Wextra -I$(INCDIR) -I$(SRCDIR) -DNUM_TX_CORES=$(NUM_TX_CORES) -DNUM_RX_CORES=$(NUM_RX_CORES) -DUSE_VLAN=$(USE_VLAN) -DTARGET_GBPS=$(TARGET_GBPS) -DSTATS_MODE_DTN=$(STATS_MODE_DTN) -DATE_ROOT=\"$(ATE_ROOT)\"
+CFLAGS = -O3 -march=native -flto -ffast-math -funroll-loops -Wextra -I$(INCDIR) -I$(SRCDIR) -DNUM_TX_CORES=$(NUM_TX_CORES) -DNUM_RX_CORES=$(NUM_RX_CORES) -DUSE_VLAN=$(USE_VLAN) -DTARGET_GBPS=$(TARGET_GBPS) -DSTATS_MODE_VMC=$(STATS_MODE_VMC) -DATE_ROOT=\"$(ATE_ROOT)\"
 DEBUG_CFLAGS = -g -O3 -DDEBUG -march=native -Wall -Wextra -I$(INCDIR) -I$(SRCDIR) -DATE_ROOT=\"$(ATE_ROOT)\"
 
 # Additional libraries (pthread for threading)

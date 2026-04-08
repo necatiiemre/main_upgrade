@@ -163,10 +163,10 @@ int main(int argc, char const *argv[])
     // Initialize RX verification stats (PRBS good/bad/bit_errors + sequence stats)
     init_rx_stats();
 
-#if STATS_MODE_DTN
-    // Initialize DTN port mapping and statistics
-    init_dtn_port_map();
-    init_dtn_stats();
+#if STATS_MODE_VMC
+    // Initialize VMC port mapping and statistics
+    init_vmc_port_map();
+    init_vmc_stats();
 #endif
 
     // *** PRBS-31 CACHE INITIALIZATION ***

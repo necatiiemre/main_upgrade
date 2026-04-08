@@ -406,98 +406,98 @@ struct dpdk_ext_tx_port_config
 #endif
 
 // ==========================================
-// DTN PORT-BASED STATISTICS MODE
+// VMC PORT-BASED STATISTICS MODE
 // ==========================================
-// STATS_MODE_DTN=1: DTN per-port statistics table (16 rows, DTN Port 0-15)
-//   - RX queue steering: rte_flow VLAN match (each queue = 1 VLAN = 1 DTN port)
+// STATS_MODE_VMC=1: VMC per-port statistics table (16 rows, VMC Port 0-15)
+//   - RX queue steering: rte_flow VLAN match (each queue = 1 VLAN = 1 VMC port)
 //   - Zero overhead Gbps calculation via HW per-queue stats
-//   - PRBS validation per DTN port
+//   - PRBS validation per VMC port
 //
-// STATS_MODE_DTN=0: Legacy server per-port table (4 rows, Server Port 0-3)
+// STATS_MODE_VMC=0: Legacy server per-port table (4 rows, Server Port 0-3)
 //   - RX queue steering: RSS (hash based)
 //   - HW total port stats
 //   - PRBS validation per server port
 
-#ifndef STATS_MODE_DTN
-#define STATS_MODE_DTN 1
+#ifndef STATS_MODE_VMC
+#define STATS_MODE_VMC 1
 #endif
 
-// DTN port count: 16 DPDK ports (4 server ports × 4 VLANs)
-#define DTN_PORT_COUNT 16
-#define DTN_DPDK_PORT_COUNT 16
+// VMC port count: 16 DPDK ports (4 server ports × 4 VLANs)
+#define VMC_PORT_COUNT 16
+#define VMC_DPDK_PORT_COUNT 16
 
-// 1 VLAN per DTN port
-#define DTN_VLANS_PER_PORT 1
+// 1 VLAN per VMC port
+#define VMC_VLANS_PER_PORT 1
 
 // ==========================================
-// DTN PORT MAPPING TABLE
+// VMC PORT MAPPING TABLE
 // ==========================================
-// Each DTN port: TX/RX from DTN perspective
-//   DTN RX = Server sends → DTN receives (server_tx_port, rx_vlan)
-//   DTN TX = DTN sends → Server receives (server_rx_port, tx_vlan)
+// Each VMC port: TX/RX from VMC perspective
+//   VMC RX = Server sends → VMC receives (server_tx_port, rx_vlan)
+//   VMC TX = VMC sends → Server receives (server_rx_port, tx_vlan)
 //
-// DTN Port 0-15: DPDK ports (4 ports × 4 VLANs)
+// VMC Port 0-15: DPDK ports (4 ports × 4 VLANs)
 // Pairs: Port 0↔1, Port 2↔3
 
-struct dtn_port_map_entry {
-    uint16_t dtn_port_id;       // DTN port number (0-15)
+struct vmc_port_map_entry {
+    uint16_t vmc_port_id;       // VMC port number (0-15)
 
-    // DTN RX (Server → DTN): Server sends from this VLAN
-    uint16_t rx_vlan;           // Server TX VLAN (DTN receives this VLAN)
+    // VMC RX (Server → VMC): Server sends from this VLAN
+    uint16_t rx_vlan;           // Server TX VLAN (VMC receives this VLAN)
     uint16_t rx_server_port;    // Server DPDK port (the one that TXs)
     uint16_t rx_server_queue;   // Server TX queue index (0-3)
 
-    // DTN TX (DTN → Server): DTN sends from this VLAN
-    uint16_t tx_vlan;           // Server RX VLAN (DTN sends from this VLAN)
+    // VMC TX (VMC → Server): VMC sends from this VLAN
+    uint16_t tx_vlan;           // Server RX VLAN (VMC sends from this VLAN)
     uint16_t tx_server_port;    // Server DPDK port (the one that RXs)
     uint16_t tx_server_queue;   // Server RX queue index (0-3)
 };
 
-// DTN Port Mapping Table (4 server ports × 4 VLANs = 16 DTN ports)
+// VMC Port Mapping Table (4 server ports × 4 VLANs = 16 VMC ports)
 // Pairs: Port 0↔1, Port 2↔3
-// Format: {dtn_port, rx_vlan, rx_srv_port, rx_srv_queue, tx_vlan, tx_srv_port, tx_srv_queue}
-#define DTN_PORT_MAP_INIT {                                                                         \
-    /* DTN 0-3:   Server TX=Port0(VLAN 105-108), Server RX=Port1(VLAN 249-252) */                   \
-    {.dtn_port_id = 0,  .rx_vlan = 105, .rx_server_port = 0, .rx_server_queue = 0,                  \
+// Format: {vmc_port, rx_vlan, rx_srv_port, rx_srv_queue, tx_vlan, tx_srv_port, tx_srv_queue}
+#define VMC_PORT_MAP_INIT {                                                                         \
+    /* VMC 0-3:   Server TX=Port0(VLAN 105-108), Server RX=Port1(VLAN 249-252) */                   \
+    {.vmc_port_id = 0,  .rx_vlan = 105, .rx_server_port = 0, .rx_server_queue = 0,                  \
                          .tx_vlan = 249, .tx_server_port = 1, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 1,  .rx_vlan = 106, .rx_server_port = 0, .rx_server_queue = 1,                  \
+    {.vmc_port_id = 1,  .rx_vlan = 106, .rx_server_port = 0, .rx_server_queue = 1,                  \
                          .tx_vlan = 250, .tx_server_port = 1, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 2,  .rx_vlan = 107, .rx_server_port = 0, .rx_server_queue = 2,                  \
+    {.vmc_port_id = 2,  .rx_vlan = 107, .rx_server_port = 0, .rx_server_queue = 2,                  \
                          .tx_vlan = 251, .tx_server_port = 1, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 3,  .rx_vlan = 108, .rx_server_port = 0, .rx_server_queue = 3,                  \
+    {.vmc_port_id = 3,  .rx_vlan = 108, .rx_server_port = 0, .rx_server_queue = 3,                  \
                          .tx_vlan = 252, .tx_server_port = 1, .tx_server_queue = 3},                 \
-    /* DTN 4-7:   Server TX=Port1(VLAN 109-112), Server RX=Port0(VLAN 253-256) */                   \
-    {.dtn_port_id = 4,  .rx_vlan = 109, .rx_server_port = 1, .rx_server_queue = 0,                  \
+    /* VMC 4-7:   Server TX=Port1(VLAN 109-112), Server RX=Port0(VLAN 253-256) */                   \
+    {.vmc_port_id = 4,  .rx_vlan = 109, .rx_server_port = 1, .rx_server_queue = 0,                  \
                          .tx_vlan = 253, .tx_server_port = 0, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 5,  .rx_vlan = 110, .rx_server_port = 1, .rx_server_queue = 1,                  \
+    {.vmc_port_id = 5,  .rx_vlan = 110, .rx_server_port = 1, .rx_server_queue = 1,                  \
                          .tx_vlan = 254, .tx_server_port = 0, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 6,  .rx_vlan = 111, .rx_server_port = 1, .rx_server_queue = 2,                  \
+    {.vmc_port_id = 6,  .rx_vlan = 111, .rx_server_port = 1, .rx_server_queue = 2,                  \
                          .tx_vlan = 255, .tx_server_port = 0, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 7,  .rx_vlan = 112, .rx_server_port = 1, .rx_server_queue = 3,                  \
+    {.vmc_port_id = 7,  .rx_vlan = 112, .rx_server_port = 1, .rx_server_queue = 3,                  \
                          .tx_vlan = 256, .tx_server_port = 0, .tx_server_queue = 3},                 \
-    /* DTN 8-11:  Server TX=Port2(VLAN 97-100),  Server RX=Port3(VLAN 241-244) */                   \
-    {.dtn_port_id = 8,  .rx_vlan = 97,  .rx_server_port = 2, .rx_server_queue = 0,                  \
+    /* VMC 8-11:  Server TX=Port2(VLAN 97-100),  Server RX=Port3(VLAN 241-244) */                   \
+    {.vmc_port_id = 8,  .rx_vlan = 97,  .rx_server_port = 2, .rx_server_queue = 0,                  \
                          .tx_vlan = 241, .tx_server_port = 3, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 9,  .rx_vlan = 98,  .rx_server_port = 2, .rx_server_queue = 1,                  \
+    {.vmc_port_id = 9,  .rx_vlan = 98,  .rx_server_port = 2, .rx_server_queue = 1,                  \
                          .tx_vlan = 242, .tx_server_port = 3, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 10, .rx_vlan = 99,  .rx_server_port = 2, .rx_server_queue = 2,                  \
+    {.vmc_port_id = 10, .rx_vlan = 99,  .rx_server_port = 2, .rx_server_queue = 2,                  \
                          .tx_vlan = 243, .tx_server_port = 3, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 11, .rx_vlan = 100, .rx_server_port = 2, .rx_server_queue = 3,                  \
+    {.vmc_port_id = 11, .rx_vlan = 100, .rx_server_port = 2, .rx_server_queue = 3,                  \
                          .tx_vlan = 244, .tx_server_port = 3, .tx_server_queue = 3},                 \
-    /* DTN 12-15: Server TX=Port3(VLAN 101-104), Server RX=Port2(VLAN 245-248) */                   \
-    {.dtn_port_id = 12, .rx_vlan = 101, .rx_server_port = 3, .rx_server_queue = 0,                  \
+    /* VMC 12-15: Server TX=Port3(VLAN 101-104), Server RX=Port2(VLAN 245-248) */                   \
+    {.vmc_port_id = 12, .rx_vlan = 101, .rx_server_port = 3, .rx_server_queue = 0,                  \
                          .tx_vlan = 245, .tx_server_port = 2, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 13, .rx_vlan = 102, .rx_server_port = 3, .rx_server_queue = 1,                  \
+    {.vmc_port_id = 13, .rx_vlan = 102, .rx_server_port = 3, .rx_server_queue = 1,                  \
                          .tx_vlan = 246, .tx_server_port = 2, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 14, .rx_vlan = 103, .rx_server_port = 3, .rx_server_queue = 2,                  \
+    {.vmc_port_id = 14, .rx_vlan = 103, .rx_server_port = 3, .rx_server_queue = 2,                  \
                          .tx_vlan = 247, .tx_server_port = 2, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 15, .rx_vlan = 104, .rx_server_port = 3, .rx_server_queue = 3,                  \
+    {.vmc_port_id = 15, .rx_vlan = 104, .rx_server_port = 3, .rx_server_queue = 3,                  \
                          .tx_vlan = 248, .tx_server_port = 2, .tx_server_queue = 3},                 \
 }
 
-// VLAN → DTN port lookup (fast access)
-// Index = VLAN ID, Value = DTN port number (0xFF = undefined)
-#define DTN_VLAN_LOOKUP_SIZE 257  // VLAN 0-256
-#define DTN_VLAN_INVALID 0xFF
+// VLAN → VMC port lookup (fast access)
+// Index = VLAN ID, Value = VMC port number (0xFF = undefined)
+#define VMC_VLAN_LOOKUP_SIZE 257  // VLAN 0-256
+#define VMC_VLAN_INVALID 0xFF
 
 #endif /* CONFIG_H */
