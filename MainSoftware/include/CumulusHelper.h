@@ -52,6 +52,13 @@ public:
 
     bool configureSequence();
 
+    // VMC-specific VLAN configuration
+    bool configureSwp1309();
+    bool configureSwp1410();
+    bool configureSwp1511();
+    bool configureSwp1612();
+    bool configureSequenceVmc();
+
     // ==================== NVUE VLAN Commands ====================
 
     /**

@@ -89,8 +89,8 @@ bool Vmc::configureSequence()
 
     sleep(1);
 
-    // Configure Cumulus switch VLANs
-    if (!g_cumulus.configureSequence())
+    // Configure Cumulus switch VLANs (VMC-specific)
+    if (!g_cumulus.configureSequenceVmc())
     {
         ErrorPrinter::error("CUMULUS", "VMC: Cumulus configuration failed!");
         shutdown.executeShutdown();
