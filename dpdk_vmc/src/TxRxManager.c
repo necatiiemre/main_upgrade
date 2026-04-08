@@ -1,7 +1,8 @@
 #include "TxRxManager.h"
 #include "RawSocketPort.h"  // For external packet PRBS verification
 #include "DpdkExternalTx.h" // For integrated external TX
-#include "EmbeddedLatency/EmbeddedLatency.h" // For ate_mode_enabled()
+// ate_mode_enabled() is defined in main.c
+extern bool ate_mode_enabled(void);
 #include <rte_lcore.h>
 #include <rte_launch.h>
 #include <rte_cycles.h>

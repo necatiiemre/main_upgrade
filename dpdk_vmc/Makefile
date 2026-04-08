@@ -5,7 +5,6 @@ CC = gcc
 # Directories
 SRCDIR = src
 INCDIR = include
-EMBLATDIR = src/EmbeddedLatency
 PTPDIR = src/Ptp
 HEALTHDIR = src/HealthMonitor
 
@@ -32,8 +31,8 @@ DEBUG_CFLAGS = -g -O3 -DDEBUG -march=native -Wall -Wextra -I$(INCDIR) -I$(SRCDIR
 # Additional libraries for raw socket ports (pthread for threading)
 EXTRA_LIBS = -lpthread
 
-# Source files (include embedded latency, PTP and health monitor)
-SOURCES = $(wildcard $(SRCDIR)/*.c) $(wildcard $(EMBLATDIR)/*.c) $(wildcard $(PTPDIR)/*.c) $(wildcard $(HEALTHDIR)/*.c)
+# Source files (PTP and health monitor, no embedded latency for VMC)
+SOURCES = $(wildcard $(SRCDIR)/*.c) $(wildcard $(PTPDIR)/*.c) $(wildcard $(HEALTHDIR)/*.c)
 
 # DPDK flags
 DPDK_FLAGS = $(shell pkg-config --cflags --libs libdpdk)
