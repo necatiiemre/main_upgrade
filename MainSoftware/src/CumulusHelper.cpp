@@ -1275,6 +1275,216 @@ bool CumulusHelper::configureSequence()
     return true;
 }
 
+// ==================== VMC VLAN Configuration ====================
+
+bool CumulusHelper::configureSwp1309()
+{
+
+    // 1. Test connection
+    if (!connect())
+    {
+        std::cerr << getLogPrefix() << " Configuration failed: Cannot connect to switch" << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp9s0", 97, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 97 untagged to swp25s0  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp9s1", 98, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 98 untagged to swp25s1  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp9s2", 99, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 99 untagged to swp25s2  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp9s3", 100, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 100 untagged to swp25s3  " << std::endl;
+        return false;
+    }
+
+
+    std::cout << "\n========================================" << std::endl;
+    std::cout << getLogPrefix() << " VLAN Configuration Sw13 and Swp25 Completed Successfully!" << std::endl;
+    std::cout << "========================================\n"
+              << std::endl;
+
+    return true;
+}
+
+bool CumulusHelper::configureSwp1410()
+{
+
+    // 1. Test connection
+    if (!connect())
+    {
+        std::cerr << getLogPrefix() << " Configuration failed: Cannot connect to switch" << std::endl;
+        return false;
+    }
+
+    if (!egressUntagged("swp10s0", 101, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 101 untagged to swp26s0  " << std::endl;
+        return false;
+    }
+
+    if (!egressUntagged("swp10s1", 102, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 102 untagged to swp26s1  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp10s2", 103, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 103 untagged to swp26s2  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp10s3", 104, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 100 untagged to swp26s3  " << std::endl;
+        return false;
+    }
+
+
+    std::cout << "\n========================================" << std::endl;
+    std::cout << getLogPrefix() << " VLAN Configuration Sw14 and Swp26 Completed Successfully!" << std::endl;
+    std::cout << "========================================\n"
+              << std::endl;
+
+    return true;
+}
+
+bool CumulusHelper::configureSwp1511()
+{
+
+    // 1. Test connection
+    if (!connect())
+    {
+        std::cerr << getLogPrefix() << " Configuration failed: Cannot connect to switch" << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp11s0", 105, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 105 untagged to swp27s0  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp11s1", 106, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 106 untagged to swp27s1  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp11s2", 107, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 107 untagged to swp27s2  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp11s3", 108, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 108 untagged to swp27s3  " << std::endl;
+        return false;
+    }
+
+
+    std::cout << "\n========================================" << std::endl;
+    std::cout << getLogPrefix() << " VLAN Configuration Sw15 and Swp27 Completed Successfully!" << std::endl;
+    std::cout << "========================================\n"
+              << std::endl;
+
+    return true;
+}
+
+bool CumulusHelper::configureSwp1612()
+{
+
+    // 1. Test connection
+    if (!connect())
+    {
+        std::cerr << getLogPrefix() << " Configuration failed: Cannot connect to switch" << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp12s0", 109, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 105 untagged to swp27s0  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp12s1", 110, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 106 untagged to swp27s1  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp12s2", 111, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 107 untagged to swp27s2  " << std::endl;
+        return false;
+    }
+
+
+    if (!egressUntagged("swp12s3", 112, true))
+    {
+        std::cerr << getLogPrefix() << " Failed to add bridge VLAN 108 untagged to swp27s3  " << std::endl;
+        return false;
+    }
+
+
+    std::cout << "\n========================================" << std::endl;
+    std::cout << getLogPrefix() << " VLAN Configuration Sw15 and Swp27 Completed Successfully!" << std::endl;
+    std::cout << "========================================\n"
+              << std::endl;
+
+    return true;
+}
+
+bool CumulusHelper::configureSequenceVmc()
+{
+    std::cout << "\n========================================" << std::endl;
+    std::cout << getLogPrefix() << " Starting VLAN Configuration Sequence" << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    // 1. Test connection
+    if (!connect())
+    {
+        std::cerr << getLogPrefix() << " Configuration failed: Cannot connect to switch" << std::endl;
+        return false;
+    }
+
+    configureSwp1309();
+    configureSwp1410();
+    configureSwp1511();
+    configureSwp1612();
+
+
+    return true;
+}
+
 // ==================== NVUE VLAN Commands ====================
 
 bool CumulusHelper::addVLAN(const std::string &interface, int vlan_id, const std::string &bridge)

@@ -2,6 +2,8 @@
 #include "ReportManager.h"
 #include "SafeShutdown.h"
 #include "ErrorPrinter.h"
+#include "CumulusHelper.h"
+#include "SSHDeployer.h"
 #include "Utils.h"
 #include <iostream>
 #include <unistd.h>
@@ -54,12 +56,14 @@ bool Vmc::configureSequence()
         return false;
     }
 
-    if (!g_DeviceManager.setVoltage(PSUG30, 20.0))
+    if (!g_DeviceManager.setVoltage(PSUG30, 28.0))
     {
         ErrorPrinter::error("PSU", "VMC: Failed to set voltage on PSU G30!");
         shutdown.executeShutdown();
         return false;
     }
+
+    serial::sendSerialCommand("/dev/ttyACM0", "VMC_ID 1");
 
     if (!g_DeviceManager.enableOutput(PSUG30, true))
     {
@@ -72,7 +76,28 @@ bool Vmc::configureSequence()
     // Record Unit Power On Time when PSU output is enabled
     g_ReportManager.recordUnitPowerOnTime();
 
-    serial::sendSerialCommand("/dev/ttyACM0", "VMC_ID 1");
+    sleep(30);
+
+    sleep(2);
+    if (!g_cumulus.deployNetworkInterfaces(SSHDeployer::getPrebuiltRoot() + "/CumulusInterfaces/VMC/interfaces"))
+    {
+        ErrorPrinter::error("CUMULUS", "VMC: Failed to deploy network configuration!");
+        shutdown.executeShutdown();
+        return false;
+    }
+    DEBUG_LOG("VMC: Network configuration deployed successfully.");
+
+    sleep(1);
+
+    // Configure Cumulus switch VLANs (VMC-specific)
+    if (!g_cumulus.configureSequenceVmc())
+    {
+        ErrorPrinter::error("CUMULUS", "VMC: Cumulus configuration failed!");
+        shutdown.executeShutdown();
+        return false;
+    }
+
+    sleep(1);
 
     for (int i = 0; i < 1000; i++)
     {
@@ -125,8 +150,8 @@ bool Vmc::configureSequence()
     }
     shutdown.unregisterPsuConnected(PSUG30);
 
-    g_Server.offWithWait(300);
-    shutdown.unregisterServerOn();
+    // g_Server.offWithWait(300);
+    // shutdown.unregisterServerOn();
 
     std::cout << "VMC: PSU configured successfully." << std::endl;
     return true;

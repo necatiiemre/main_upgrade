@@ -196,6 +196,8 @@ prepare_assets() {
     # CumulusInterfaces
     mkdir -p "$PREBUILT_DIR/CumulusInterfaces/DTNIRSW"
     cp "$SCRIPT_DIR/CumulusInterfaces/DTNIRSW/interfaces" "$PREBUILT_DIR/CumulusInterfaces/DTNIRSW/"
+    mkdir -p "$PREBUILT_DIR/CumulusInterfaces/VMC"
+    cp "$SCRIPT_DIR/CumulusInterfaces/VMC/interfaces" "$PREBUILT_DIR/CumulusInterfaces/VMC/"
     log_info "CumulusInterfaces config copied"
 
     # DPDK runtime files
