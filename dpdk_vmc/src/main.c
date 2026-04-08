@@ -13,6 +13,7 @@
 #include "Helpers.h" // helper_reset_stats, helper_print_stats, signal_handler / force_quit
 #include "PortManager.h"
 #include "EalInit.h"
+#include "Socket.h"
 #include "Packet.h"
 #include "TxRxManager.h"
 #include "DpdkExternalTx.h" // DPDK External TX (independent system)
