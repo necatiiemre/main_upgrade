@@ -169,21 +169,7 @@ struct port_vlan_config
     {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {253, 254, 255, 256}, .rx_vlan_count = 4, .tx_vl_ids = {1027, 1155, 1283, 1411}, .rx_vl_ids = {3, 131, 259, 387}},     /* Port 1 */  \
         {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {249, 250, 251, 252}, .rx_vlan_count = 4, .tx_vl_ids = {1539, 1667, 1795, 1923}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 2 */  \
         {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {245, 246, 247, 248}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},          /* Port 3 */  \
-        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {241, 242, 243, 244}, .rx_vlan_count = 4, .tx_vl_ids = {515, 643, 771, 899}, .rx_vl_ids = {3, 131, 259, 387}},     /* Port 4 */  \
-        {.tx_vlans = {113, 114, 115, 116}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {2051, 2179, 2307, 2435}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 5 */  \
-        {.tx_vlans = {117, 118, 119, 120}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {2563, 2691, 2819, 2947}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 6 */  \
-        {.tx_vlans = {121, 122, 123, 124}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {3075, 3203, 3331, 3459}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 7 */  \
-        {.tx_vlans = {125, 126, 127, 128}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {3587, 3715, 3843, 3971}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 8 */  \
-        {.tx_vlans = {129, 130, 131, 132}, .tx_vlan_count = 4, .rx_vlans = {133, 134, 135, 136}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},       /* Port 9 */  \
-        {.tx_vlans = {129, 130, 131, 132}, .tx_vlan_count = 4, .rx_vlans = {133, 134, 135, 136}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},       /* Port 10 */ \
-        {.tx_vlans = {137, 138, 139, 140}, .tx_vlan_count = 4, .rx_vlans = {141, 142, 143, 144}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},                     \
-    /* Port 11 */                                                                                                                                                                                           \
-    {                                                                                                                                                                                                       \
-      .tx_vlans = {137, 138, 139, 140}, .tx_vlan_count = 4,                                                                                                                                                 \
-      .rx_vlans = {141, 142, 143, 144}, .rx_vlan_count = 4,                                                                                                                                                 \
-      .tx_vl_ids = {3, 131, 259, 387},                                                                                                                                                                      \
-      .rx_vl_ids = {3, 131, 259, 387}                                                                                                                                                                       \
-    }                                                                                                                                                                                                       \
+        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {241, 242, 243, 244}, .rx_vlan_count = 4, .tx_vl_ids = {515, 643, 771, 899}, .rx_vl_ids = {3, 131, 259, 387}},                   \
   }
 
 // ==========================================
@@ -200,21 +186,7 @@ struct port_vlan_config
     {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {1027, 1155, 1283, 1411}, .rx_vl_ids = {3, 131, 259, 387}},     /* Port 1 */  \
         {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {1539, 1667, 1795, 1923}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 2 */  \
         {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},          /* Port 3 */  \
-        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {515, 643, 771, 899}, .rx_vl_ids = {3, 131, 259, 387}},     /* Port 4 */  \
-        {.tx_vlans = {113, 114, 115, 116}, .tx_vlan_count = 4, .rx_vlans = {245, 246, 247, 248}, .rx_vlan_count = 4, .tx_vl_ids = {2051, 2179, 2307, 2435}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 5 */  \
-        {.tx_vlans = {117, 118, 119, 120}, .tx_vlan_count = 4, .rx_vlans = {241, 242, 243, 244}, .rx_vlan_count = 4, .tx_vl_ids = {2563, 2691, 2819, 2947}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 6 */  \
-        {.tx_vlans = {121, 122, 123, 124}, .tx_vlan_count = 4, .rx_vlans = {253, 254, 255, 256}, .rx_vlan_count = 4, .tx_vl_ids = {3075, 3203, 3331, 3459}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 7 */  \
-        {.tx_vlans = {125, 126, 127, 128}, .tx_vlan_count = 4, .rx_vlans = {249, 250, 251, 252}, .rx_vlan_count = 4, .tx_vl_ids = {3587, 3715, 3843, 3971}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 8 */  \
-        {.tx_vlans = {129, 130, 131, 132}, .tx_vlan_count = 4, .rx_vlans = {133, 134, 135, 136}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},       /* Port 9 */  \
-        {.tx_vlans = {129, 130, 131, 132}, .tx_vlan_count = 4, .rx_vlans = {133, 134, 135, 136}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},       /* Port 10 */ \
-        {.tx_vlans = {137, 138, 139, 140}, .tx_vlan_count = 4, .rx_vlans = {141, 142, 143, 144}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},                     \
-    /* Port 11 */                                                                                                                                                                                           \
-    {                                                                                                                                                                                                       \
-      .tx_vlans = {137, 138, 139, 140}, .tx_vlan_count = 4,                                                                                                                                                 \
-      .rx_vlans = {141, 142, 143, 144}, .rx_vlan_count = 4,                                                                                                                                                 \
-      .tx_vl_ids = {3, 131, 259, 387},                                                                                                                                                                      \
-      .rx_vl_ids = {3, 131, 259, 387}                                                                                                                                                                       \
-    }                                                                                                                                                                                                       \
+        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {515, 643, 771, 899}, .rx_vl_ids = {3, 131, 259, 387}},                   \
   }
 
 // ==========================================
@@ -269,19 +241,8 @@ struct port_vlan_config
 // ==========================================
 #define STATS_INTERVAL_SEC 1 // Write statistics every N seconds
 
-// ==========================================
-// DPDK EXTERNAL TX CONFIGURATION
-// ==========================================
-// This system operates INDEPENDENTLY from the existing DPDK TX.
-// Uses DPDK Port 0,1,2,3 → Switch → Port 12 (raw socket) path.
-// Each port sends 4 different VLAN/VL-ID combinations via 4 queues.
-//
-// Flow:
-//   DPDK Port TX → Physical wire → Switch → Port 12 NIC → Raw socket RX
-//
-// Port 12 (raw socket) receives these packets and performs PRBS and sequence validation.
-
-#define DPDK_EXT_TX_ENABLED 1
+// DPDK External TX removed (was for raw socket ports 12/13)
+#define DPDK_EXT_TX_ENABLED 0
 #define DPDK_EXT_TX_PORT_COUNT 6 // Port 2,3,4,5 → Port 12 | Port 0,6 → Port 13
 #define DPDK_EXT_TX_QUEUES_PER_PORT 4
 
@@ -449,12 +410,12 @@ struct dpdk_ext_tx_port_config
 // ==========================================
 // DTN PORT-BASED STATISTICS MODE
 // ==========================================
-// STATS_MODE_DTN=1: DTN per-port statistics table (32 rows, DTN Port 0-31)
+// STATS_MODE_DTN=1: DTN per-port statistics table (16 rows, DTN Port 0-15)
 //   - RX queue steering: rte_flow VLAN match (each queue = 1 VLAN = 1 DTN port)
 //   - Zero overhead Gbps calculation via HW per-queue stats
 //   - PRBS validation per DTN port
 //
-// STATS_MODE_DTN=0: Legacy server per-port table (8 rows, Server Port 0-7)
+// STATS_MODE_DTN=0: Legacy server per-port table (4 rows, Server Port 0-3)
 //   - RX queue steering: RSS (hash based)
 //   - HW total port stats
 //   - PRBS validation per server port
@@ -463,9 +424,9 @@ struct dpdk_ext_tx_port_config
 #define STATS_MODE_DTN 1
 #endif
 
-// DTN port count: 32 DPDK ports
-#define DTN_PORT_COUNT 32
-#define DTN_DPDK_PORT_COUNT 32  // DTN ports connected via DPDK
+// DTN port count: 16 DPDK ports (4 server ports × 4 VLANs)
+#define DTN_PORT_COUNT 16
+#define DTN_DPDK_PORT_COUNT 16
 
 // 1 VLAN per DTN port
 #define DTN_VLANS_PER_PORT 1
@@ -477,10 +438,11 @@ struct dpdk_ext_tx_port_config
 //   DTN RX = Server sends → DTN receives (server_tx_port, rx_vlan)
 //   DTN TX = DTN sends → Server receives (server_rx_port, tx_vlan)
 //
-// DTN Port 0-31: DPDK ports (1 VLAN each)
+// DTN Port 0-15: DPDK ports (4 ports × 4 VLANs)
+// Pairs: Port 0↔1, Port 2↔3
 
 struct dtn_port_map_entry {
-    uint16_t dtn_port_id;       // DTN port number (0-31)
+    uint16_t dtn_port_id;       // DTN port number (0-15)
 
     // DTN RX (Server → DTN): Server sends from this VLAN
     uint16_t rx_vlan;           // Server TX VLAN (DTN receives this VLAN)
@@ -493,81 +455,46 @@ struct dtn_port_map_entry {
     uint16_t tx_server_queue;   // Server RX queue index (0-3)
 };
 
-// DTN Port Mapping Table
+// DTN Port Mapping Table (4 server ports × 4 VLANs = 16 DTN ports)
+// Pairs: Port 0↔1, Port 2↔3
 // Format: {dtn_port, rx_vlan, rx_srv_port, rx_srv_queue, tx_vlan, tx_srv_port, tx_srv_queue}
 #define DTN_PORT_MAP_INIT {                                                                         \
-    /* DTN 0-3:   Server TX=Port2(VLAN 97-100),  Server RX=Port5(VLAN 225-228) */                   \
-    {.dtn_port_id = 0,  .rx_vlan = 97,  .rx_server_port = 2, .rx_server_queue = 0,                  \
-                         .tx_vlan = 225, .tx_server_port = 5, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 1,  .rx_vlan = 98,  .rx_server_port = 2, .rx_server_queue = 1,                  \
-                         .tx_vlan = 226, .tx_server_port = 5, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 2,  .rx_vlan = 99,  .rx_server_port = 2, .rx_server_queue = 2,                  \
-                         .tx_vlan = 227, .tx_server_port = 5, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 3,  .rx_vlan = 100, .rx_server_port = 2, .rx_server_queue = 3,                  \
-                         .tx_vlan = 228, .tx_server_port = 5, .tx_server_queue = 3},                 \
-    /* DTN 4-7:   Server TX=Port3(VLAN 101-104), Server RX=Port4(VLAN 229-232) */                   \
-    {.dtn_port_id = 4,  .rx_vlan = 101, .rx_server_port = 3, .rx_server_queue = 0,                  \
-                         .tx_vlan = 229, .tx_server_port = 4, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 5,  .rx_vlan = 102, .rx_server_port = 3, .rx_server_queue = 1,                  \
-                         .tx_vlan = 230, .tx_server_port = 4, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 6,  .rx_vlan = 103, .rx_server_port = 3, .rx_server_queue = 2,                  \
-                         .tx_vlan = 231, .tx_server_port = 4, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 7,  .rx_vlan = 104, .rx_server_port = 3, .rx_server_queue = 3,                  \
-                         .tx_vlan = 232, .tx_server_port = 4, .tx_server_queue = 3},                 \
-    /* DTN 8-11:  Server TX=Port0(VLAN 105-108), Server RX=Port7(VLAN 233-236) */                   \
-    {.dtn_port_id = 8,  .rx_vlan = 105, .rx_server_port = 0, .rx_server_queue = 0,                  \
-                         .tx_vlan = 233, .tx_server_port = 7, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 9,  .rx_vlan = 106, .rx_server_port = 0, .rx_server_queue = 1,                  \
-                         .tx_vlan = 234, .tx_server_port = 7, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 10, .rx_vlan = 107, .rx_server_port = 0, .rx_server_queue = 2,                  \
-                         .tx_vlan = 235, .tx_server_port = 7, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 11, .rx_vlan = 108, .rx_server_port = 0, .rx_server_queue = 3,                  \
-                         .tx_vlan = 236, .tx_server_port = 7, .tx_server_queue = 3},                 \
-    /* DTN 12-15: Server TX=Port1(VLAN 109-112), Server RX=Port6(VLAN 237-240) */                   \
-    {.dtn_port_id = 12, .rx_vlan = 109, .rx_server_port = 1, .rx_server_queue = 0,                  \
-                         .tx_vlan = 237, .tx_server_port = 6, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 13, .rx_vlan = 110, .rx_server_port = 1, .rx_server_queue = 1,                  \
-                         .tx_vlan = 238, .tx_server_port = 6, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 14, .rx_vlan = 111, .rx_server_port = 1, .rx_server_queue = 2,                  \
-                         .tx_vlan = 239, .tx_server_port = 6, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 15, .rx_vlan = 112, .rx_server_port = 1, .rx_server_queue = 3,                  \
-                         .tx_vlan = 240, .tx_server_port = 6, .tx_server_queue = 3},                 \
-    /* DTN 16-19: Server TX=Port4(VLAN 113-116), Server RX=Port3(VLAN 241-244) */                   \
-    {.dtn_port_id = 16, .rx_vlan = 113, .rx_server_port = 4, .rx_server_queue = 0,                  \
-                         .tx_vlan = 241, .tx_server_port = 3, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 17, .rx_vlan = 114, .rx_server_port = 4, .rx_server_queue = 1,                  \
-                         .tx_vlan = 242, .tx_server_port = 3, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 18, .rx_vlan = 115, .rx_server_port = 4, .rx_server_queue = 2,                  \
-                         .tx_vlan = 243, .tx_server_port = 3, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 19, .rx_vlan = 116, .rx_server_port = 4, .rx_server_queue = 3,                  \
-                         .tx_vlan = 244, .tx_server_port = 3, .tx_server_queue = 3},                 \
-    /* DTN 20-23: Server TX=Port5(VLAN 117-120), Server RX=Port2(VLAN 245-248) */                   \
-    {.dtn_port_id = 20, .rx_vlan = 117, .rx_server_port = 5, .rx_server_queue = 0,                  \
-                         .tx_vlan = 245, .tx_server_port = 2, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 21, .rx_vlan = 118, .rx_server_port = 5, .rx_server_queue = 1,                  \
-                         .tx_vlan = 246, .tx_server_port = 2, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 22, .rx_vlan = 119, .rx_server_port = 5, .rx_server_queue = 2,                  \
-                         .tx_vlan = 247, .tx_server_port = 2, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 23, .rx_vlan = 120, .rx_server_port = 5, .rx_server_queue = 3,                  \
-                         .tx_vlan = 248, .tx_server_port = 2, .tx_server_queue = 3},                 \
-    /* DTN 24-27: Server TX=Port6(VLAN 121-124), Server RX=Port1(VLAN 249-252) */                   \
-    {.dtn_port_id = 24, .rx_vlan = 121, .rx_server_port = 6, .rx_server_queue = 0,                  \
+    /* DTN 0-3:   Server TX=Port0(VLAN 105-108), Server RX=Port1(VLAN 249-252) */                   \
+    {.dtn_port_id = 0,  .rx_vlan = 105, .rx_server_port = 0, .rx_server_queue = 0,                  \
                          .tx_vlan = 249, .tx_server_port = 1, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 25, .rx_vlan = 122, .rx_server_port = 6, .rx_server_queue = 1,                  \
+    {.dtn_port_id = 1,  .rx_vlan = 106, .rx_server_port = 0, .rx_server_queue = 1,                  \
                          .tx_vlan = 250, .tx_server_port = 1, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 26, .rx_vlan = 123, .rx_server_port = 6, .rx_server_queue = 2,                  \
+    {.dtn_port_id = 2,  .rx_vlan = 107, .rx_server_port = 0, .rx_server_queue = 2,                  \
                          .tx_vlan = 251, .tx_server_port = 1, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 27, .rx_vlan = 124, .rx_server_port = 6, .rx_server_queue = 3,                  \
+    {.dtn_port_id = 3,  .rx_vlan = 108, .rx_server_port = 0, .rx_server_queue = 3,                  \
                          .tx_vlan = 252, .tx_server_port = 1, .tx_server_queue = 3},                 \
-    /* DTN 28-31: Server TX=Port7(VLAN 125-128), Server RX=Port0(VLAN 253-256) */                   \
-    {.dtn_port_id = 28, .rx_vlan = 125, .rx_server_port = 7, .rx_server_queue = 0,                  \
+    /* DTN 4-7:   Server TX=Port1(VLAN 109-112), Server RX=Port0(VLAN 253-256) */                   \
+    {.dtn_port_id = 4,  .rx_vlan = 109, .rx_server_port = 1, .rx_server_queue = 0,                  \
                          .tx_vlan = 253, .tx_server_port = 0, .tx_server_queue = 0},                 \
-    {.dtn_port_id = 29, .rx_vlan = 126, .rx_server_port = 7, .rx_server_queue = 1,                  \
+    {.dtn_port_id = 5,  .rx_vlan = 110, .rx_server_port = 1, .rx_server_queue = 1,                  \
                          .tx_vlan = 254, .tx_server_port = 0, .tx_server_queue = 1},                 \
-    {.dtn_port_id = 30, .rx_vlan = 127, .rx_server_port = 7, .rx_server_queue = 2,                  \
+    {.dtn_port_id = 6,  .rx_vlan = 111, .rx_server_port = 1, .rx_server_queue = 2,                  \
                          .tx_vlan = 255, .tx_server_port = 0, .tx_server_queue = 2},                 \
-    {.dtn_port_id = 31, .rx_vlan = 128, .rx_server_port = 7, .rx_server_queue = 3,                  \
+    {.dtn_port_id = 7,  .rx_vlan = 112, .rx_server_port = 1, .rx_server_queue = 3,                  \
                          .tx_vlan = 256, .tx_server_port = 0, .tx_server_queue = 3},                 \
+    /* DTN 8-11:  Server TX=Port2(VLAN 97-100),  Server RX=Port3(VLAN 241-244) */                   \
+    {.dtn_port_id = 8,  .rx_vlan = 97,  .rx_server_port = 2, .rx_server_queue = 0,                  \
+                         .tx_vlan = 241, .tx_server_port = 3, .tx_server_queue = 0},                 \
+    {.dtn_port_id = 9,  .rx_vlan = 98,  .rx_server_port = 2, .rx_server_queue = 1,                  \
+                         .tx_vlan = 242, .tx_server_port = 3, .tx_server_queue = 1},                 \
+    {.dtn_port_id = 10, .rx_vlan = 99,  .rx_server_port = 2, .rx_server_queue = 2,                  \
+                         .tx_vlan = 243, .tx_server_port = 3, .tx_server_queue = 2},                 \
+    {.dtn_port_id = 11, .rx_vlan = 100, .rx_server_port = 2, .rx_server_queue = 3,                  \
+                         .tx_vlan = 244, .tx_server_port = 3, .tx_server_queue = 3},                 \
+    /* DTN 12-15: Server TX=Port3(VLAN 101-104), Server RX=Port2(VLAN 245-248) */                   \
+    {.dtn_port_id = 12, .rx_vlan = 101, .rx_server_port = 3, .rx_server_queue = 0,                  \
+                         .tx_vlan = 245, .tx_server_port = 2, .tx_server_queue = 0},                 \
+    {.dtn_port_id = 13, .rx_vlan = 102, .rx_server_port = 3, .rx_server_queue = 1,                  \
+                         .tx_vlan = 246, .tx_server_port = 2, .tx_server_queue = 1},                 \
+    {.dtn_port_id = 14, .rx_vlan = 103, .rx_server_port = 3, .rx_server_queue = 2,                  \
+                         .tx_vlan = 247, .tx_server_port = 2, .tx_server_queue = 2},                 \
+    {.dtn_port_id = 15, .rx_vlan = 104, .rx_server_port = 3, .rx_server_queue = 3,                  \
+                         .tx_vlan = 248, .tx_server_port = 2, .tx_server_queue = 3},                 \
 }
 
 // VLAN → DTN port lookup (fast access)

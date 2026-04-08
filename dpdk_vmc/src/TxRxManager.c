@@ -1,5 +1,4 @@
 #include "TxRxManager.h"
-#include "DpdkExternalTx.h" // For integrated external TX
 #include "AteMode.h"
 #include <rte_lcore.h>
 #include <rte_launch.h>

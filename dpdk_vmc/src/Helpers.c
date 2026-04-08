@@ -8,7 +8,6 @@
 
 #include "Config.h"
 #include "TxRxManager.h"  // for rx_stats_per_port
-#include "DpdkExternalTx.h" // for External TX stats
 
 // Daemon mode flag - when true, ANSI escape codes are disabled
 bool g_daemon_mode = false;
