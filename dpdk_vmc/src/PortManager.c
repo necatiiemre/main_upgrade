@@ -121,13 +121,6 @@ void print_ports_info(const struct ports_config *config)
         }
 #endif
 
-#if PTP_ENABLED
-        if (port->used_ptp_core != 0)
-        {
-            printf("  PTP core: %u\n", port->used_ptp_core);
-        }
-#endif
-
         printf("  Status: %s\n", port->is_valid ? "Valid" : "Invalid");
         printf("\n");
     }
@@ -338,32 +331,6 @@ void lcorePortAssign(struct ports_config *config)
         }
 #endif
 
-#if PTP_ENABLED
-        // Assign dedicated PTP core for each port
-        config->ports[port].used_ptp_core = 0; // Default: not assigned
-
-        if (unused_lcore_list[cores] != 0)
-        {
-            uint16_t lcore = lcore_list[cores];
-            unused_lcore_list[cores] = 0;
-            config->ports[port].used_ptp_core = lcore;
-            cores--;
-        }
-        else
-        {
-            while (unused_lcore_list[cores] == 0 && cores > 0)
-            {
-                cores--;
-            }
-            if (cores > 0)
-            {
-                uint16_t lcore = lcore_list[cores];
-                unused_lcore_list[cores] = 0;
-                config->ports[port].used_ptp_core = lcore;
-                cores--;
-            }
-        }
-#endif
     }
 }
 

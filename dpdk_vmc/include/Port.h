@@ -27,7 +27,6 @@ struct port {
     uint16_t used_tx_cores[NUM_TX_CORES]; /* Lcores assigned to TX queues */
     uint16_t used_rx_cores[NUM_RX_CORES]; /* Lcores assigned to RX queues */
     uint16_t used_ext_tx_core;           /* Lcore for external TX (ports 0-3) */
-    uint16_t used_ptp_core;              /* Lcore for PTP worker */
 };
 
 /**

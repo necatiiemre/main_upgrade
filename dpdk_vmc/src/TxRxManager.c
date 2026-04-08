@@ -1,5 +1,4 @@
 #include "TxRxManager.h"
-#include "RawSocketPort.h"  // For external packet PRBS verification
 #include "DpdkExternalTx.h" // For integrated external TX
 #include "AteMode.h"
 #include <rte_lcore.h>
@@ -392,9 +391,6 @@ void init_rx_stats(void)
         rte_atomic64_init(&rx_stats_per_port[i].duplicate_pkts);
         rte_atomic64_init(&rx_stats_per_port[i].short_pkts);
         rte_atomic64_init(&rx_stats_per_port[i].external_pkts);
-        // Raw socket RX counters (non-VLAN packets from raw socket ports)
-        rte_atomic64_init(&rx_stats_per_port[i].raw_socket_rx_pkts);
-        rte_atomic64_init(&rx_stats_per_port[i].raw_socket_rx_bytes);
 
         // Initialize VL-ID sequence trackers (lock-free, watermark-based)
         for (int vl = 0; vl <= MAX_VL_ID; vl++)
@@ -499,7 +495,7 @@ int dtn_flow_rules_install(uint16_t port_id)
 
         // Flow attributes
         attr.ingress = 1;
-        attr.priority = 1;  // Lower priority than PTP (PTP priority=0)
+        attr.priority = 1;
 
         // Action: Steer to queue
         struct rte_flow_action_queue queue_action;
@@ -975,17 +971,6 @@ int init_port_txrx(uint16_t port_id, struct txrx_config *config)
         printf("Warning: Cannot enable promiscuous mode for port %u\n", port_id);
     }
 
-    // Enable allmulticast mode for PTP multicast reception
-    ret = rte_eth_allmulticast_enable(port_id);
-    if (ret != 0)
-    {
-        printf("Warning: Cannot enable allmulticast mode for port %u\n", port_id);
-    }
-    else
-    {
-        printf("Port %u: Allmulticast mode enabled\n", port_id);
-    }
-
     printf("Port %u started successfully\n", port_id);
     return 0;
 }
@@ -1017,14 +1002,12 @@ void print_port_stats(struct ports_config *ports_config)
         printf("  RX Missed:  %lu\n", stats.imissed);
 
         printf("  Per-Queue RX:\n");
-        // Show all queues including PTP queue (Q5)
-        for (uint16_t q = 0; q < RTE_ETHDEV_QUEUE_STAT_CNTRS && q <= 5; q++)
+        for (uint16_t q = 0; q < RTE_ETHDEV_QUEUE_STAT_CNTRS && q < NUM_RX_CORES; q++)
         {
-            if (stats.q_ipackets[q] > 0 || q == 5)  // Always show Q5 (PTP)
+            if (stats.q_ipackets[q] > 0)
             {
-                printf("    Queue %u: %lu packets, %lu bytes%s\n",
-                       q, stats.q_ipackets[q], stats.q_ibytes[q],
-                       (q == 5) ? " [PTP]" : "");
+                printf("    Queue %u: %lu packets, %lu bytes\n",
+                       q, stats.q_ipackets[q], stats.q_ibytes[q]);
             }
         }
 
@@ -1361,32 +1344,6 @@ static inline bool is_valid_tx_vl_id_for_source_port(uint16_t vl_id, uint16_t sr
     return false;
 }
 
-/**
- * Find raw socket port that sent this VL-ID (for external packet PRBS verification)
- * Returns pointer to raw_socket_port if found, NULL otherwise
- */
-static inline struct raw_socket_port* find_raw_socket_port_by_vl_id(uint16_t vl_id)
-{
-    for (int p = 0; p < MAX_RAW_SOCKET_PORTS; p++)
-    {
-        struct raw_socket_port *port = &raw_ports[p];
-        if (!port->prbs_initialized)
-            continue;
-
-        // Check all TX targets of this raw socket port
-        for (int t = 0; t < port->tx_target_count; t++)
-        {
-            struct raw_tx_target_config *target = &port->config.tx_targets[t];
-            if (vl_id >= target->vl_id_start &&
-                vl_id < target->vl_id_start + target->vl_id_count)
-            {
-                return port;
-            }
-        }
-    }
-    return NULL;
-}
-
 int rx_worker(void *arg)
 {
     struct rx_worker_params *params = (struct rx_worker_params *)arg;
@@ -1429,7 +1386,6 @@ int rx_worker(void *arg)
     uint64_t local_rx = 0, local_good = 0, local_bad = 0, local_bits = 0;
     uint64_t local_lost = 0, local_ooo = 0, local_dup = 0, local_short = 0;
     uint64_t local_external = 0;  // External packets (VL-ID outside expected range)
-    uint64_t local_raw_rx = 0, local_raw_bytes = 0;  // Raw socket packet counters
     const uint32_t FLUSH = 131072;
 
 #if STATS_MODE_DTN
@@ -1441,7 +1397,6 @@ int rx_worker(void *arg)
 #endif
 
     bool first_good = false, first_bad = false;
-    bool first_raw_rx = false;  // Track first raw socket packet
 
     // Get VL-ID tracker for this port
     struct port_vl_tracker *vl_tracker = &port_vl_trackers[params->port_id];
@@ -1480,188 +1435,17 @@ int rx_worker(void *arg)
                 uint8_t *pkt = rte_pktmbuf_mtod(m, uint8_t *);
 
                 // ==========================================
-                // DYNAMIC PACKET TYPE DETECTION
-                // EtherType at offset 12-13:
-                //   0x8100 = VLAN tagged (from DPDK ports)
-                //   0x0800 = IPv4 (from raw socket, no VLAN)
+                // VLAN PACKET processing
                 // ==========================================
+
+                // Skip non-VLAN packets
                 uint16_t ether_type = ((uint16_t)pkt[12] << 8) | pkt[13];
-
-                // DEBUG: Check if PTP packets (0x88F7) are arriving on wrong queue
-                // PTP should go to Queue 5 via rte_flow, not here (Queue 0-3)
-                if (ether_type == 0x88F7) {
-                    // Untagged PTP packet on normal queue!
-                    static uint64_t ptp_wrong_queue_count = 0;
-                    if (ptp_wrong_queue_count++ < 10) {
-                        printf("⚠ PTP PACKET on Port %u Q%u (should be Q5)! EtherType=0x%04X UNTAGGED\n",
-                               params->port_id, params->queue_id, ether_type);
-                    }
-                } else if (ether_type == 0x8100) {
-                    // VLAN-tagged - check inner EtherType
-                    uint16_t inner_type = ((uint16_t)pkt[16] << 8) | pkt[17];
-                    if (inner_type == 0x88F7) {
-                        static uint64_t ptp_vlan_wrong_queue_count = 0;
-                        if (ptp_vlan_wrong_queue_count++ < 10) {
-                            uint16_t vlan_id = (((uint16_t)pkt[14] << 8) | pkt[15]) & 0x0FFF;
-                            printf("⚠ PTP PACKET on Port %u Q%u (should be Q5)! VLAN=%u EtherType=0x%04X\n",
-                                   params->port_id, params->queue_id, vlan_id, inner_type);
-                        }
-                    }
-                }
-
-                if (ether_type == 0x0800)
+                if (ether_type != 0x8100)
                 {
-                    // ==========================================
-                    // NON-VLAN PACKET (from raw socket Port 12/13)
-                    // PRBS validation using raw socket port's cache
-                    // ==========================================
-                    local_raw_rx++;
-                    local_raw_bytes += m->pkt_len;
+                    continue;
 
-                    if (unlikely(!first_raw_rx))
-                    {
-                        printf("RX: First RAW SOCKET packet on Port %u Queue %u (len=%u)\n",
-                               params->port_id, params->queue_id, m->pkt_len);
-                        first_raw_rx = true;
-                    }
-
-                    // Minimum length check for raw socket packets
-                    // IMIX minimum: ETH(14) + IP(20) + UDP(8) + SEQ(8) + MIN_PRBS = 100 bytes
-#if IMIX_ENABLED
-                    const uint32_t min_raw_pkt_len = IMIX_MIN_PACKET_SIZE - VLAN_HDR_SIZE;  // Raw socket has no VLAN
-#else
-                    const uint32_t min_raw_pkt_len = l2_len_novlan + 20 + 8 + RAW_PKT_SEQ_BYTES + RAW_PKT_PRBS_BYTES;
-#endif
-                    if (unlikely(m->pkt_len < min_raw_pkt_len))
-                    {
-                        local_short++;
-                        continue;
-                    }
-
-                    // Payload offset for non-VLAN packets: ETH(14) + IP(20) + UDP(8) = 42
-                    const uint32_t raw_payload_off = l2_len_novlan + 20 + 8;
-
-                    // Extract VL-ID from DST MAC (offset 4-5, last 2 bytes of DST MAC)
-                    // DST MAC format: 03:00:00:00:XX:XX where XX:XX = VL-ID
-                    uint16_t raw_vl_id = ((uint16_t)pkt[4] << 8) | pkt[5];
-
-                    // Find raw socket port that sent this packet
-                    struct raw_socket_port *raw_port = find_raw_socket_port_by_vl_id(raw_vl_id);
-                    if (raw_port != NULL && raw_port->prbs_cache_ext != NULL)
-                    {
-                        // Get sequence number from payload
-                        uint64_t raw_seq = *(uint64_t *)(pkt + raw_payload_off);
-
-#if IMIX_ENABLED
-                        // IMIX: PRBS offset calculation ALWAYS uses MAX_PRBS_BYTES
-                        // PRBS size is calculated from packet size
-                        uint16_t raw_prbs_len = m->pkt_len - l2_len_novlan - 20 - 8 - RAW_PKT_SEQ_BYTES;
-                        if (raw_prbs_len > MAX_PRBS_BYTES) raw_prbs_len = MAX_PRBS_BYTES;
-
-                        uint64_t prbs_offset = (raw_seq * (uint64_t)MAX_PRBS_BYTES) % 268435456ULL;
-                        uint8_t *expected_prbs = raw_port->prbs_cache_ext + prbs_offset;
-                        uint8_t *recv_prbs = pkt + raw_payload_off + RAW_PKT_SEQ_BYTES;
-
-                        // Compare PRBS data (dynamic size)
-                        if (memcmp(recv_prbs, expected_prbs, raw_prbs_len) == 0)
-                        {
-                            local_good++;
-                        }
-                        else
-                        {
-                            local_bad++;
-                            // Count bit errors
-                            for (uint32_t b = 0; b < raw_prbs_len; b++)
-                            {
-                                local_bits += __builtin_popcount(recv_prbs[b] ^ expected_prbs[b]);
-                            }
-                        }
-#else
-                        // Calculate PRBS offset (same formula as raw_socket_port.c)
-                        // RAW_PRBS_CACHE_SIZE = 268435456 (256MB)
-                        uint64_t prbs_offset = (raw_seq * (uint64_t)RAW_PKT_PRBS_BYTES) % 268435456ULL;
-                        uint8_t *expected_prbs = raw_port->prbs_cache_ext + prbs_offset;
-                        uint8_t *recv_prbs = pkt + raw_payload_off + RAW_PKT_SEQ_BYTES;
-
-                        // Compare PRBS data
-                        if (memcmp(recv_prbs, expected_prbs, RAW_PKT_PRBS_BYTES) == 0)
-                        {
-                            local_good++;
-                        }
-                        else
-                        {
-                            local_bad++;
-                            // Count bit errors
-                            for (uint32_t b = 0; b < RAW_PKT_PRBS_BYTES; b++)
-                            {
-                                local_bits += __builtin_popcount(recv_prbs[b] ^ expected_prbs[b]);
-                            }
-                        }
-#endif
-
-                        // Sequence tracking for raw socket packets
-                        if (raw_vl_id <= MAX_VL_ID)
-                        {
-                            struct vl_sequence_tracker *raw_seq_tracker = &vl_tracker->vl_trackers[raw_vl_id];
-
-                            // Check if initialized
-                            int was_init = __atomic_load_n(&raw_seq_tracker->initialized, __ATOMIC_ACQUIRE);
-                            if (!was_init)
-                            {
-                                int expected_init = 0;
-                                if (__atomic_compare_exchange_n(&raw_seq_tracker->initialized,
-                                                                &expected_init, 1,
-                                                                false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
-                                {
-#if TOKEN_BUCKET_TX_ENABLED
-                                    __atomic_store_n(&raw_seq_tracker->min_seq, raw_seq, __ATOMIC_RELEASE);
-#endif
-                                    __atomic_store_n(&raw_seq_tracker->expected_seq, raw_seq + 1, __ATOMIC_RELEASE);
-                                }
-                            }
-                            else
-                            {
-#if TOKEN_BUCKET_TX_ENABLED
-                                // Multi-queue NOTE: Since raw socket packets arrive without VLAN tags,
-                                // the NIC RSS can distribute them across different RX queues. In that case,
-                                // Q1 may process a higher seq before Q0 -> false positive gap.
-                                // Therefore real-time gap detection is NOT USED.
-                                // Loss detection is done watermark-based (max_seq+1 - pkt_count)
-#else
-                                // Real-time gap detection
-                                uint64_t expected = __atomic_load_n(&raw_seq_tracker->expected_seq, __ATOMIC_ACQUIRE);
-                                if (raw_seq > expected)
-                                {
-                                    local_lost += (raw_seq - expected);
-                                }
-                                if (raw_seq >= expected)
-                                {
-                                    __atomic_store_n(&raw_seq_tracker->expected_seq, raw_seq + 1, __ATOMIC_RELEASE);
-                                }
-#endif
-                            }
-
-                            // Update max_seq if this sequence is higher
-                            uint64_t current_max;
-                            do {
-                                current_max = __atomic_load_n(&raw_seq_tracker->max_seq, __ATOMIC_ACQUIRE);
-                                if (raw_seq <= current_max) {
-                                    break;
-                                }
-                            } while (!__atomic_compare_exchange_n(&raw_seq_tracker->max_seq,
-                                                                   &current_max, raw_seq,
-                                                                   false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
-
-                            // Increment packet count
-                            __atomic_fetch_add(&raw_seq_tracker->pkt_count, 1, __ATOMIC_RELAXED);
-                        }
-                    }
-                    continue;  // Done with raw socket packet
                 }
 
-                // ==========================================
-                // VLAN PACKET (from DPDK ports) - process normally
-                // ==========================================
 #if IMIX_ENABLED
                 // IMIX minimum: 100 bytes
                 if (unlikely(m->pkt_len < IMIX_MIN_PACKET_SIZE))
@@ -1678,137 +1462,6 @@ int rx_worker(void *arg)
 
                 //  Extract VL-ID from DST MAC (last 2 bytes)
                 uint16_t vl_id = extract_vl_id_from_packet(pkt, l2_len_vlan);
-
-                // ==========================================
-                // VL-ID RANGE CHECK - External packet detection
-                // If VL-ID doesn't match what the source port (paired DPDK port)
-                // would send, it's from an external source (1G/100M lines)
-                // ==========================================
-                if (!is_valid_tx_vl_id_for_source_port(vl_id, params->src_port_id))
-                {
-                    local_external++;
-
-                    // Try to find the raw socket port that sent this packet
-                    struct raw_socket_port *raw_port = find_raw_socket_port_by_vl_id(vl_id);
-                    if (raw_port != NULL && raw_port->prbs_cache_ext != NULL)
-                    {
-                        // Get sequence number from payload
-                        uint64_t ext_seq = *(uint64_t *)(pkt + payload_off);
-
-#if IMIX_ENABLED
-                        // IMIX: PRBS offset calculation ALWAYS uses MAX_PRBS_BYTES
-                        // PRBS size is calculated from packet size
-                        uint16_t ext_prbs_len = m->pkt_len - l2_len_vlan - 20 - 8 - SEQ_BYTES;
-                        if (ext_prbs_len > MAX_PRBS_BYTES) ext_prbs_len = MAX_PRBS_BYTES;
-
-                        uint64_t prbs_offset = (ext_seq * (uint64_t)MAX_PRBS_BYTES) % 268435456ULL;
-                        uint8_t *expected_prbs = raw_port->prbs_cache_ext + prbs_offset;
-                        uint8_t *recv_prbs = pkt + payload_off + SEQ_BYTES;
-
-                        // Compare PRBS data (dynamic size)
-                        if (memcmp(recv_prbs, expected_prbs, ext_prbs_len) == 0)
-                        {
-                            local_good++;
-                        }
-                        else
-                        {
-                            local_bad++;
-                            // Count bit errors
-                            for (uint32_t i = 0; i < ext_prbs_len; i++)
-                            {
-                                local_bits += __builtin_popcount(recv_prbs[i] ^ expected_prbs[i]);
-                            }
-                        }
-#else
-                        // Calculate PRBS offset (same formula as raw_socket_port.c)
-                        // RAW_PRBS_CACHE_SIZE = 268435456 (256MB)
-                        uint64_t prbs_offset = (ext_seq * (uint64_t)RAW_PKT_PRBS_BYTES) % 268435456ULL;
-                        uint8_t *expected_prbs = raw_port->prbs_cache_ext + prbs_offset;
-                        uint8_t *recv_prbs = pkt + payload_off + SEQ_BYTES;
-
-                        // Compare PRBS data (use smaller size for comparison)
-                        // RAW_PKT_PRBS_BYTES = 1459, NUM_PRBS_BYTES may differ
-                        uint32_t cmp_len = RAW_PKT_PRBS_BYTES;
-                        if (cmp_len > NUM_PRBS_BYTES) cmp_len = NUM_PRBS_BYTES;
-
-                        if (memcmp(recv_prbs, expected_prbs, cmp_len) == 0)
-                        {
-                            local_good++;
-                        }
-                        else
-                        {
-                            local_bad++;
-                            // Count bit errors
-                            for (uint32_t i = 0; i < cmp_len; i++)
-                            {
-                                local_bits += __builtin_popcount(recv_prbs[i] ^ expected_prbs[i]);
-                            }
-                        }
-#endif
-
-                        // ==========================================
-                        // SEQUENCE TRACKING FOR EXTERNAL PACKETS
-                        // Real-time gap detection + watermark tracking
-                        // ==========================================
-                        if (vl_id <= MAX_VL_ID)
-                        {
-                            struct vl_sequence_tracker *ext_seq_tracker = &vl_tracker->vl_trackers[vl_id];
-
-                            // Check if initialized
-                            int was_init = __atomic_load_n(&ext_seq_tracker->initialized, __ATOMIC_ACQUIRE);
-                            if (!was_init)
-                            {
-                                int expected_init = 0;
-                                if (__atomic_compare_exchange_n(&ext_seq_tracker->initialized,
-                                                                &expected_init, 1,
-                                                                false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
-                                {
-#if TOKEN_BUCKET_TX_ENABLED
-                                    __atomic_store_n(&ext_seq_tracker->min_seq, ext_seq, __ATOMIC_RELEASE);
-#endif
-                                    __atomic_store_n(&ext_seq_tracker->expected_seq, ext_seq + 1, __ATOMIC_RELEASE);
-                                }
-                            }
-                            else
-                            {
-#if TOKEN_BUCKET_TX_ENABLED
-                                // Multi-queue NOTE: Since external/raw socket packets arrive without
-                                // VLAN tags, NIC RSS can distribute them across different RX queues.
-                                // Gap detection (expected_seq) gives false positives in multi-queue OOO.
-                                // Loss detection is done watermark-based (max_seq+1 - pkt_count).
-#else
-                                // Real-time gap detection
-                                uint64_t expected = __atomic_load_n(&ext_seq_tracker->expected_seq, __ATOMIC_ACQUIRE);
-                                if (ext_seq > expected)
-                                {
-                                    local_lost += (ext_seq - expected);
-                                }
-                                if (ext_seq >= expected)
-                                {
-                                    __atomic_store_n(&ext_seq_tracker->expected_seq, ext_seq + 1, __ATOMIC_RELEASE);
-                                }
-#endif
-                            }
-
-                            // Update max_seq if this sequence is higher (CAS loop)
-                            uint64_t current_max;
-                            do {
-                                current_max = __atomic_load_n(&ext_seq_tracker->max_seq, __ATOMIC_ACQUIRE);
-                                if (ext_seq <= current_max) {
-                                    break;  // Not higher, no update needed
-                                }
-                            } while (!__atomic_compare_exchange_n(&ext_seq_tracker->max_seq,
-                                                                   &current_max, ext_seq,
-                                                                   false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
-
-                            // Increment packet count
-                            __atomic_fetch_add(&ext_seq_tracker->pkt_count, 1, __ATOMIC_RELAXED);
-                        }
-                    }
-                    // If raw_port not found, just count as external (no PRBS check)
-
-                    continue;  // Skip internal PRBS validation
-                }
 
                 // Get sequence number from payload
                 uint64_t seq = *(uint64_t *)(pkt + payload_off);
@@ -1966,9 +1619,6 @@ int rx_worker(void *arg)
                 rte_atomic64_add(&rx_stats_per_port[params->port_id].duplicate_pkts, local_dup);
                 rte_atomic64_add(&rx_stats_per_port[params->port_id].short_pkts, local_short);
                 rte_atomic64_add(&rx_stats_per_port[params->port_id].external_pkts, local_external);
-                // Raw socket RX counters
-                rte_atomic64_add(&rx_stats_per_port[params->port_id].raw_socket_rx_pkts, local_raw_rx);
-                rte_atomic64_add(&rx_stats_per_port[params->port_id].raw_socket_rx_bytes, local_raw_bytes);
 
 #if STATS_MODE_DTN
                 // DTN per-port PRBS stats (queue = VLAN = DTN port)
@@ -1985,13 +1635,12 @@ int rx_worker(void *arg)
 #endif
                 local_rx = local_good = local_bad = local_bits = 0;
                 local_lost = local_ooo = local_dup = local_short = local_external = 0;
-                local_raw_rx = local_raw_bytes = 0;
             }
         }
     }
 
     // Final flush
-    if (local_rx || local_raw_rx || local_external)
+    if (local_rx || local_external)
     {
         rte_atomic64_add(&rx_stats_per_port[params->port_id].total_rx_pkts, local_rx);
         rte_atomic64_add(&rx_stats_per_port[params->port_id].good_pkts, local_good);
@@ -2002,9 +1651,6 @@ int rx_worker(void *arg)
         rte_atomic64_add(&rx_stats_per_port[params->port_id].duplicate_pkts, local_dup);
         rte_atomic64_add(&rx_stats_per_port[params->port_id].short_pkts, local_short);
         rte_atomic64_add(&rx_stats_per_port[params->port_id].external_pkts, local_external);
-        // Raw socket RX counters
-        rte_atomic64_add(&rx_stats_per_port[params->port_id].raw_socket_rx_pkts, local_raw_rx);
-        rte_atomic64_add(&rx_stats_per_port[params->port_id].raw_socket_rx_bytes, local_raw_bytes);
 
 #if STATS_MODE_DTN
         if (my_dtn_port != DTN_VLAN_INVALID) {

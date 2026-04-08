@@ -18,13 +18,7 @@
 // VL-ID range limits
 // Each port may have different tx_vl_ids start values (e.g., Port 7 → 3971)
 // Each queue has a 128 VL-ID range
-// Extended for raw socket ports:
-//   - Raw Port 0 (1G): 4099-4226 (128 VL-ID)
-//   - Raw Port 1 (100M): 4227-4258 (32 VL-ID)
-// Extended for DPDK External TX:
-//   - Port 2: 4259-4386, Port 3: 4387-4514
-//   - Port 0: 4515-4642, Port 1: 4643-4770
-#define MAX_VL_ID 4800  // Increased to support DPDK external TX (up to 4770)
+#define MAX_VL_ID 4800
 #define MIN_VL_ID 3
 #define VL_RANGE_SIZE_PER_QUEUE 128  // 128 VL-IDs per queue
 
@@ -62,9 +56,6 @@ struct rx_stats
     rte_atomic64_t duplicate_pkts;     // Duplicate packets
     rte_atomic64_t short_pkts;         // Packets shorter than minimum length
     rte_atomic64_t external_pkts;      // Packets from external lines (VL-ID out of range)
-    // Raw socket packets (non-VLAN) - tracked separately from DPDK
-    rte_atomic64_t raw_socket_rx_pkts; // Packet count from raw socket
-    rte_atomic64_t raw_socket_rx_bytes; // Byte count from raw socket
 };
 
 extern struct rx_stats rx_stats_per_port[MAX_PORTS];
