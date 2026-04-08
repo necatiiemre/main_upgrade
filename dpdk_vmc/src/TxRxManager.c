@@ -1350,13 +1350,11 @@ int rx_worker(void *arg)
     struct rte_mbuf *pkts[BURST_SIZE];
     bool first_packet_received = false;
 
-    // L2 header lengths for dynamic detection
+    // L2 header length for VLAN packets
     const uint16_t l2_len_vlan = sizeof(struct rte_ether_hdr) + sizeof(struct vlan_hdr);  // 18
-    const uint16_t l2_len_novlan = sizeof(struct rte_ether_hdr);                           // 14
 
-    // Minimum packet lengths for each type
+    // Minimum packet length
     const uint32_t min_len_vlan = l2_len_vlan + 20 + 8 + SEQ_BYTES + NUM_PRBS_BYTES;      // 1509
-    const uint32_t min_len_novlan = l2_len_novlan + 20 + 8 + SEQ_BYTES + NUM_PRBS_BYTES;  // 1505
 
     if (params->src_port_id >= MAX_PRBS_CACHE_PORTS)
     {
@@ -1380,8 +1378,7 @@ int rx_worker(void *arg)
     printf("RX Worker: Port %u, Queue %u, VLAN %u (VL-ID Based Sequence Validation)\n",
            params->port_id, params->queue_id, params->vlan_id);
     printf("  Source Port: %u (for PRBS verification)\n", params->src_port_id);
-    printf("  Dynamic L2 detection: VLAN (0x8100)->%u bytes, Non-VLAN (0x0800)->%u bytes\n",
-           l2_len_vlan, l2_len_novlan);
+    printf("  L2 header: VLAN (0x8100)->%u bytes\n", l2_len_vlan);
 
     uint64_t local_rx = 0, local_good = 0, local_bad = 0, local_bits = 0;
     uint64_t local_lost = 0, local_ooo = 0, local_dup = 0, local_short = 0;
@@ -1433,18 +1430,6 @@ int rx_worker(void *arg)
             {
                 struct rte_mbuf *m = pkts[i];
                 uint8_t *pkt = rte_pktmbuf_mtod(m, uint8_t *);
-
-                // ==========================================
-                // VLAN PACKET processing
-                // ==========================================
-
-                // Skip non-VLAN packets
-                uint16_t ether_type = ((uint16_t)pkt[12] << 8) | pkt[13];
-                if (ether_type != 0x8100)
-                {
-                    continue;
-
-                }
 
 #if IMIX_ENABLED
                 // IMIX minimum: 100 bytes
