@@ -61,7 +61,28 @@ void ate_mode_selection(void) {
             // Loop continues - asks ATE mode question again
         } else {
             printf("Continuing in normal test mode.\n\n");
-            return;
+
+            // Ask for unit test cables - max 3 attempts before returning to ATE selection
+            int unit_cable_retry = 0;
+            bool unit_cables_installed = false;
+
+            while (unit_cable_retry < 3) {
+                if (ask_question("Are the unit test cables installed?")) {
+                    unit_cables_installed = true;
+                    break;
+                }
+                unit_cable_retry++;
+                if (unit_cable_retry < 3) {
+                    printf("\nPlease install the unit test cables and try again.\n\n");
+                }
+            }
+
+            if (unit_cables_installed) {
+                return;
+            }
+
+            printf("\n[Unit] Cable installation declined 3 times. Returning to ATE mode selection.\n\n");
+            // Loop continues - asks ATE mode question again
         }
     }
 }
