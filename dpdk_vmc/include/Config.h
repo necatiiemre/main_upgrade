@@ -158,8 +158,11 @@ struct port_vlan_config
 
   // Initial VL-IDs for init (matches queue index)
   // In dynamic usage, you will iterate within these VL ranges.
-  uint16_t tx_vl_ids[MAX_TX_VLANS_PER_PORT]; // {3,131,259,387}
-  uint16_t rx_vl_ids[MAX_RX_VLANS_PER_PORT]; // {3,131,259,387}
+  uint16_t tx_vl_ids[MAX_TX_VLANS_PER_PORT]; // VL-ID start per queue
+  uint16_t rx_vl_ids[MAX_RX_VLANS_PER_PORT]; // VL-ID start per queue
+
+  // Per-queue VL-ID count (0 = use default VL_RANGE_SIZE_PER_QUEUE)
+  uint16_t tx_vl_counts[MAX_TX_VLANS_PER_PORT];
 };
 
 // Per-port VLAN/VL-ID template (queue index ↔ VL range start matches)
@@ -178,13 +181,13 @@ struct port_vlan_config
 // Each port sends with TX VLAN and receives back on RX VLAN with same VL-IDX.
 // Selected at runtime based on g_ate_mode flag.
 
-#define ATE_PORT_VLAN_CONFIG_INIT                                                                                                                                                                              \
-  {                                                                                                                                                                                                            \
-    /* Port 0: TX VLAN 105-108, RX VLAN 233-236 */                                                                                                                                                            \
-    {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {602, 622, 346, 366}, .rx_vl_ids = {602, 622, 346, 366}},       /* Port 1 */     \
-        {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {522, 542, 562, 582}, .rx_vl_ids = {522, 542, 562, 582}},   /* Port 2 */     \
-        {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {161, 224, 416, 480}, .rx_vl_ids = {161, 224, 416, 480}},      /* Port 3 */     \
-        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {266, 286, 306, 326}, .rx_vl_ids = {266, 286, 306, 326}},                    \
+#define ATE_PORT_VLAN_CONFIG_INIT                                                                                                                                                                                                                        \
+  {                                                                                                                                                                                                                                                      \
+    /* Port 0: TX VLAN 105-108, RX VLAN 233-236, VL-IDX: 602-611, 622-627, 346-355, 366-371 */                                                                                                                                                          \
+    {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {602, 622, 346, 366}, .rx_vl_ids = {602, 622, 346, 366}, .tx_vl_counts = {10, 6, 10, 6}},       /* Port 1 */              \
+        {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {522, 542, 562, 582}, .rx_vl_ids = {522, 542, 562, 582}, .tx_vl_counts = {10, 10, 10, 10}}, /* Port 2 */              \
+        {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {161, 224, 416, 480}, .rx_vl_ids = {161, 224, 416, 480}, .tx_vl_counts = {29, 30, 32, 32}},    /* Port 3 */              \
+        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {266, 286, 306, 326}, .rx_vl_ids = {266, 286, 306, 326}, .tx_vl_counts = {10, 10, 10, 10}},                          \
   }
 
 // ==========================================

@@ -161,11 +161,13 @@ static inline uint16_t get_tx_vl_id_range_start(uint16_t port_id, uint16_t queue
 
 /**
  * Get TX VL ID range end for a port and queue (exclusive, PORT-AWARE)
- * Returns start + 128
+ * Uses per-queue tx_vl_counts if set, otherwise default VL_RANGE_SIZE_PER_QUEUE
  */
 static inline uint16_t get_tx_vl_id_range_end(uint16_t port_id, uint16_t queue_index)
 {
-    return get_tx_vl_id_range_start(port_id, queue_index) + VL_RANGE_SIZE_PER_QUEUE;
+    uint16_t count = port_vlans[port_id].tx_vl_counts[queue_index];
+    if (count == 0) count = VL_RANGE_SIZE_PER_QUEUE;
+    return get_tx_vl_id_range_start(port_id, queue_index) + count;
 }
 
 /**
@@ -190,11 +192,13 @@ static inline uint16_t get_rx_vl_id_range_start(uint16_t port_id, uint16_t queue
 
 /**
  * Get RX VL ID range end for a port and queue (exclusive, PORT-AWARE)
- * Returns start + 128
+ * Uses per-queue tx_vl_counts if set, otherwise default VL_RANGE_SIZE_PER_QUEUE
  */
 static inline uint16_t get_rx_vl_id_range_end(uint16_t port_id, uint16_t queue_index)
 {
-    return get_rx_vl_id_range_start(port_id, queue_index) + VL_RANGE_SIZE_PER_QUEUE;
+    uint16_t count = port_vlans[port_id].tx_vl_counts[queue_index];
+    if (count == 0) count = VL_RANGE_SIZE_PER_QUEUE;
+    return get_rx_vl_id_range_start(port_id, queue_index) + count;
 }
 
 /**
@@ -1083,7 +1087,7 @@ int tx_worker(void *arg)
     const uint16_t vl_end = vl_start + vl_range_size;
 #else
     const uint16_t vl_end = get_tx_vl_id_range_end(params->port_id, params->queue_id);
-    const uint16_t vl_range_size = get_vl_id_range_size(); // Always 128
+    const uint16_t vl_range_size = vl_end - vl_start;
 #endif
 
 #if IMIX_ENABLED
@@ -1757,7 +1761,10 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
     {
         struct port *port = &ports_config->ports[port_idx];
         uint16_t port_id = port->port_id;
-        uint16_t paired_port_id = (port_id % 2 == 0) ? (uint16_t)(port_id + 1) : (uint16_t)(port_id - 1);
+        // ATE loopback: packets return to same port, so src = self
+        // Normal mode: packets come from paired port (0↔1, 2↔3)
+        uint16_t paired_port_id = ate_mode_enabled() ? port_id :
+            ((port_id % 2 == 0) ? (uint16_t)(port_id + 1) : (uint16_t)(port_id - 1));
 
         printf("\n--- Port %u RX (Receiving from Port %u) ---\n", port_id, paired_port_id);
 
@@ -1815,7 +1822,10 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
     {
         struct port *port = &ports_config->ports[port_idx];
         uint16_t port_id = port->port_id;
-        uint16_t paired_port_id = (port_id % 2 == 0) ? (uint16_t)(port_id + 1) : (uint16_t)(port_id - 1);
+        // ATE loopback: TX goes to self (loopback cable)
+        // Normal mode: TX goes to paired port (0↔1, 2↔3)
+        uint16_t paired_port_id = ate_mode_enabled() ? port_id :
+            ((port_id % 2 == 0) ? (uint16_t)(port_id + 1) : (uint16_t)(port_id - 1));
 
         printf("\n--- Port %u TX (Sending to Port %u) ---\n", port_id, paired_port_id);
 
