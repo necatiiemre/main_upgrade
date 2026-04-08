@@ -1322,28 +1322,6 @@ int tx_worker(void *arg)
 // RX WORKER - VL-ID BASED SEQUENCE VALIDATION
 // ==========================================
 
-/**
- * Check if VL-ID is within valid TX range for source port (any queue)
- * This is used to detect external packets - if VL-ID doesn't match
- * what the source port would send, it's from an external source.
- */
-static inline bool is_valid_tx_vl_id_for_source_port(uint16_t vl_id, uint16_t src_port_id)
-{
-    if (src_port_id >= MAX_PORTS_CONFIG)
-        return false;
-
-    // Check all TX queues for source port
-    uint16_t queue_count = port_vlans[src_port_id].tx_vlan_count;
-    for (uint16_t q = 0; q < queue_count; q++)
-    {
-        uint16_t start = port_vlans[src_port_id].tx_vl_ids[q];
-        uint16_t end = start + VL_RANGE_SIZE_PER_QUEUE;
-        if (vl_id >= start && vl_id < end)
-            return true;
-    }
-    return false;
-}
-
 int rx_worker(void *arg)
 {
     struct rx_worker_params *params = (struct rx_worker_params *)arg;
