@@ -1831,7 +1831,7 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
                 continue;
             }
 
-            double port_target_gbps = ate_mode_enabled() ? TARGET_GBPS_FAST : GET_PORT_TARGET_GBPS(port_id);
+            double port_target_gbps = TARGET_GBPS;
             init_rate_limiter(&tx_params[tx_param_idx].limiter, port_target_gbps, NUM_TX_CORES);
 
             uint16_t tx_vlan = get_tx_vlan_for_queue(port_id, q);
@@ -1874,10 +1874,10 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
             tx_params[tx_param_idx].pkt_config.dst_port = DEFAULT_DST_PORT;
             tx_params[tx_param_idx].pkt_config.ttl = DEFAULT_TTL;
 
-            printf("  TX Queue %u -> Lcore %2u -> VLAN %u, VL RANGE [%u..%u) Rate: %.1f Gbps (%s)\n",
+            printf("  TX Queue %u -> Lcore %2u -> VLAN %u, VL RANGE [%u..%u) Rate: %.1f Gbps\n",
                    q, lcore_id, tx_vlan,
                    get_tx_vl_id_range_start(port_id, q), get_tx_vl_id_range_end(port_id, q),
-                   port_target_gbps, IS_FAST_PORT(port_id) ? "FAST" : "SLOW");
+                   port_target_gbps);
 
             int ret = rte_eal_remote_launch(tx_worker,
                                             &tx_params[tx_param_idx],

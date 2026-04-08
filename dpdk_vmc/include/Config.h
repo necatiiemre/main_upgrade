@@ -232,38 +232,11 @@ struct port_vlan_config
 // ==========================================
 // PORT-BASED RATE LIMITING
 // ==========================================
-// Port 0, 1, 6, 7, 8: Fast (not connected to Port 12)
-// Port 2, 3, 4, 5: Slow (connected to Port 12, doing external TX)
+// All ports use the same target rate
 
-#ifndef TARGET_GBPS_FAST
-#define TARGET_GBPS_FAST 3.6
+#ifndef TARGET_GBPS
+#define TARGET_GBPS 3.6
 #endif
-
-#ifndef TARGET_GBPS_MID
-#define TARGET_GBPS_MID 3.4
-#endif
-
-#ifndef TARGET_GBPS_SLOW
-#define TARGET_GBPS_SLOW 3.4
-#endif
-
-// DPDK-DPDK ports (fast)
-#define IS_FAST_PORT(port_id) ((port_id) == 1 || (port_id) == 7 || (port_id) == 8)
-
-// DPDK ports connected to Port 12 (medium speed)
-#define IS_MID_PORT(port_id) ((port_id) == 2 || (port_id) == 3 || \
-                              (port_id) == 4 || (port_id) == 5)
-
-// DPDK ports connected to Port 13 (slow)
-#define IS_SLOW_PORT(port_id) ((port_id) == 0 || (port_id) == 6)
-
-// Per-port target rate (Gbps)
-// FAST: DPDK-DPDK ports (1,7,8)
-// MID: Ports connected to Port 12 (2,3,4,5)
-// SLOW: Ports connected to Port 13 (0,6)
-#define GET_PORT_TARGET_GBPS(port_id)                                                \
-  (IS_FAST_PORT(port_id) ? TARGET_GBPS_FAST : IS_MID_PORT(port_id) ? TARGET_GBPS_MID \
-                                                                   : TARGET_GBPS_SLOW)
 
 #ifndef RATE_LIMITER_ENABLED
 #define RATE_LIMITER_ENABLED 1

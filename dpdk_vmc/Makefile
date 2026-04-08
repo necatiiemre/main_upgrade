@@ -8,9 +8,7 @@ INCDIR = include
 
 NUM_TX_CORES ?= 4
 NUM_RX_CORES ?= 4
-TARGET_GBPS_FAST ?= 3.74
-TARGET_GBPS_MID ?= 3.50
-TARGET_GBPS_SLOW ?= 3.69
+TARGET_GBPS ?= 3.74
 USE_VLAN ?=1
 
 # DTN port-based statistics mode (1=DTN 34-port table, 0=Server 8-port table)
@@ -20,7 +18,7 @@ STATS_MODE_DTN ?= 1
 ATE_ROOT := $(shell pwd)/AteCumulus/AteTestMode
 
 # Compiler flags
-CFLAGS = -O3 -march=native -flto -ffast-math -funroll-loops -Wextra -I$(INCDIR) -I$(SRCDIR) -DNUM_TX_CORES=$(NUM_TX_CORES) -DNUM_RX_CORES=$(NUM_RX_CORES) -DUSE_VLAN=$(USE_VLAN) -DTARGET_GBPS_FAST=$(TARGET_GBPS_FAST) -DTARGET_GBPS_MID=$(TARGET_GBPS_MID) -DTARGET_GBPS_SLOW=$(TARGET_GBPS_SLOW) -DSTATS_MODE_DTN=$(STATS_MODE_DTN) -DATE_ROOT=\"$(ATE_ROOT)\"
+CFLAGS = -O3 -march=native -flto -ffast-math -funroll-loops -Wextra -I$(INCDIR) -I$(SRCDIR) -DNUM_TX_CORES=$(NUM_TX_CORES) -DNUM_RX_CORES=$(NUM_RX_CORES) -DUSE_VLAN=$(USE_VLAN) -DTARGET_GBPS=$(TARGET_GBPS) -DSTATS_MODE_DTN=$(STATS_MODE_DTN) -DATE_ROOT=\"$(ATE_ROOT)\"
 DEBUG_CFLAGS = -g -O3 -DDEBUG -march=native -Wall -Wextra -I$(INCDIR) -I$(SRCDIR) -DATE_ROOT=\"$(ATE_ROOT)\"
 
 # Additional libraries (pthread for threading)
