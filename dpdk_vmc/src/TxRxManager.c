@@ -904,7 +904,8 @@ int init_port_txrx(uint16_t port_id, struct txrx_config *config)
 
 #if STATS_MODE_VMC
     // VMC mode: Set up VLAN-based flow steering (after port start)
-    if (config->nb_rx_queues > 1)
+    // Skip flow rules in ATE mode - ATE uses server table with RSS
+    if (config->nb_rx_queues > 1 && !ate_mode_enabled())
     {
         printf("Port %u: Installing VMC VLAN→Queue flow rules...\n", port_id);
         int flow_ret = vmc_flow_rules_install(port_id);
@@ -913,6 +914,23 @@ int init_port_txrx(uint16_t port_id, struct txrx_config *config)
         }
 
         // Still configure RETA (fallback in case of flow rule miss)
+        struct rte_eth_rss_reta_entry64 reta_conf[16];
+        memset(reta_conf, 0, sizeof(reta_conf));
+        uint16_t reta_size = dev_info.reta_size;
+        if (reta_size > 0) {
+            const uint16_t num_data_rx_queues = NUM_RX_CORES;
+            for (uint16_t i = 0; i < reta_size; i++) {
+                uint16_t idx = i / RTE_ETH_RETA_GROUP_SIZE;
+                uint16_t shift = i % RTE_ETH_RETA_GROUP_SIZE;
+                if (i % RTE_ETH_RETA_GROUP_SIZE == 0)
+                    reta_conf[idx].mask = ~0ULL;
+                reta_conf[idx].reta[shift] = i % num_data_rx_queues;
+            }
+            rte_eth_dev_rss_reta_update(port_id, reta_conf, reta_size);
+        }
+    } else if (config->nb_rx_queues > 1 && ate_mode_enabled()) {
+        // ATE mode: RSS only (no VLAN flow rules)
+        printf("Port %u: ATE mode - using RSS only (no VLAN flow rules)\n", port_id);
         struct rte_eth_rss_reta_entry64 reta_conf[16];
         memset(reta_conf, 0, sizeof(reta_conf));
         uint16_t reta_size = dev_info.reta_size;
