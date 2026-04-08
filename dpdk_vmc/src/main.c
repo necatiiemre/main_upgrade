@@ -18,7 +18,7 @@
 #include "TxRxManager.h"
 #include "RawSocketPort.h"  // Raw socket port support (non-DPDK NICs)
 #include "DpdkExternalTx.h" // DPDK External TX (independent system)
-// EmbeddedLatency not used in VMC build (latency test disabled)
+#include "EmbeddedLatency/EmbeddedLatency.h"  // ATE mode selection (latency test disabled)
 #include "PtpSlave.h"        // PTP slave for IEEE 1588v2 synchronization
 #include "HealthMonitor.h"   // Health monitor for DTN status queries
 
@@ -122,6 +122,9 @@ int main(int argc, char const *argv[])
     printf("      -> P12: 80 Mbps\n");
 #endif
     printf("\n");
+
+    // ATE test mode selection (interactive, before daemon fork)
+    ate_mode_selection();
 
     // Load appropriate VLAN config based on ATE mode selection
     port_vlans_load_config(ate_mode_enabled());

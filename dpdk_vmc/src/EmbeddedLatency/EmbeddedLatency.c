@@ -1695,6 +1695,33 @@ bool ate_mode_enabled(void) {
     return g_ate_mode;
 }
 
+void ate_mode_selection(void) {
+    printf("=== ATE Test Mode Selection ===\n\n");
+
+    if (ask_question("Do you want to continue in ATE test mode?")) {
+        printf("\n[ATE] ATE test mode selected.\n");
+        printf("[ATE] Sending Cumulus switch ATE configuration...\n\n");
+
+        int ate_result = ate_configure_cumulus();
+        if (ate_result != 0) {
+            printf("\n[ATE] ERROR: Cumulus ATE configuration failed!\n");
+            printf("[ATE] Program continues but ATE config could not be applied.\n\n");
+        } else {
+            printf("\n[ATE] Cumulus ATE configuration applied successfully.\n\n");
+        }
+
+        // Ask for ATE test cables after config is sent
+        while (!ask_question("Are the ATE test mode cables installed?")) {
+            printf("\nPlease install the ATE test mode cables and try again.\n\n");
+        }
+
+        g_ate_mode = true;
+        printf("[ATE] ATE test mode enabled.\n\n");
+    } else {
+        printf("Continuing in normal test mode.\n\n");
+    }
+}
+
 bool emb_latency_completed(void) {
     return g_emb_latency.test_completed;
 }

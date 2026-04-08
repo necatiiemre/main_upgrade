@@ -221,6 +221,12 @@ int emb_latency_full_sequence(void);
 bool ate_mode_enabled(void);
 
 /**
+ * Interactive ATE mode selection (without latency tests)
+ * Asks the user if they want ATE test mode, configures Cumulus if yes.
+ */
+void ate_mode_selection(void);
+
+/**
  * Check if test completed
  */
 bool emb_latency_completed(void);
