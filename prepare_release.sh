@@ -14,6 +14,7 @@
 # Usage:
 #   ./prepare_release.sh              # Prepare all components
 #   ./prepare_release.sh dpdk         # Prepare only DPDK
+#   ./prepare_release.sh dpdk_vmc     # Prepare only DPDK VMC
 #   ./prepare_release.sh rcs          # Prepare only RemoteConfigSender
 #   ./prepare_release.sh main         # Prepare only MainSoftware
 #   ./prepare_release.sh pdf          # Prepare only PdfReportGenerator
@@ -107,6 +108,33 @@ prepare_dpdk() {
     cp -r "$SCRIPT_DIR/dpdk/AteCumulus/AteTestMode/interfaces" "$PREBUILT_DIR/dpdk/AteCumulus/AteTestMode/"
 
     log_info "DPDK prepared successfully: $PREBUILT_DIR/dpdk/dpdk_app"
+}
+
+prepare_dpdk_vmc() {
+    log_step "Preparing DPDK VMC (compile on server, fetch binary)"
+
+    # Step 1: Copy source to server
+    log_info "Copying DPDK VMC source to server..."
+    ssh_exec "rm -rf $SERVER_DIR/dpdk_vmc"
+    eval $SCP_R_CMD "$SCRIPT_DIR/dpdk_vmc" "$SERVER_USER@$SERVER_HOST:$SERVER_DIR/"
+
+    # Step 2: Build on server (standard build, not static - to keep DPDK dynamic linking)
+    log_info "Building DPDK VMC on server..."
+    ssh_exec "cd $SERVER_DIR/dpdk_vmc && make clean 2>/dev/null || true"
+    ssh_exec "cd $SERVER_DIR/dpdk_vmc && make -j\$(nproc)"
+
+    # Step 3: Create prebuilt directory
+    mkdir -p "$PREBUILT_DIR/dpdk_vmc/AteCumulus/AteTestMode"
+
+    # Step 4: Fetch compiled binary
+    log_info "Fetching compiled dpdk_app binary (VMC)..."
+    eval $SCP_CMD "$SERVER_USER@$SERVER_HOST:$SERVER_DIR/dpdk_vmc/dpdk_app" "$PREBUILT_DIR/dpdk_vmc/dpdk_app"
+    chmod +x "$PREBUILT_DIR/dpdk_vmc/dpdk_app"
+
+    # Step 5: Copy runtime files
+    cp -r "$SCRIPT_DIR/dpdk_vmc/AteCumulus/AteTestMode/interfaces" "$PREBUILT_DIR/dpdk_vmc/AteCumulus/AteTestMode/"
+
+    log_info "DPDK VMC prepared successfully: $PREBUILT_DIR/dpdk_vmc/dpdk_app"
 }
 
 prepare_remote_config_sender() {
@@ -204,6 +232,11 @@ prepare_assets() {
     mkdir -p "$PREBUILT_DIR/dpdk/AteCumulus/AteTestMode"
     cp "$SCRIPT_DIR/dpdk/AteCumulus/AteTestMode/interfaces" "$PREBUILT_DIR/dpdk/AteCumulus/AteTestMode/"
     log_info "DPDK runtime files copied"
+
+    # DPDK VMC runtime files
+    mkdir -p "$PREBUILT_DIR/dpdk_vmc/AteCumulus/AteTestMode"
+    cp "$SCRIPT_DIR/dpdk_vmc/AteCumulus/AteTestMode/interfaces" "$PREBUILT_DIR/dpdk_vmc/AteCumulus/AteTestMode/"
+    log_info "DPDK VMC runtime files copied"
 }
 
 # ==================== Main ====================
@@ -223,6 +256,10 @@ main() {
         dpdk)
             test_server_connection
             prepare_dpdk
+            ;;
+        dpdk_vmc)
+            test_server_connection
+            prepare_dpdk_vmc
             ;;
         rcs|remoteconfig|RemoteConfigSender)
             test_server_connection
@@ -244,12 +281,13 @@ main() {
             prepare_main_software
             prepare_remote_config_sender
             prepare_dpdk
+            prepare_dpdk_vmc
             prepare_pdf_report_generator
             prepare_assets
             ;;
         *)
             log_error "Unknown component: $COMPONENT"
-            echo "Usage: $0 [all|dpdk|rcs|main|pdf|assets]"
+            echo "Usage: $0 [all|dpdk|dpdk_vmc|rcs|main|pdf|assets]"
             exit 1
             ;;
     esac
