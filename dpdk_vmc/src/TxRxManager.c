@@ -1918,8 +1918,8 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
         }
     }
 
-    // NOTE: DPDK External TX workers are started AFTER raw socket workers
-    // in main.c to ensure Port 12 RX is ready before receiving packets.
+    // NOTE: DPDK External TX workers are started after DPDK RX/TX workers
+    // in main.c to ensure RX is ready before receiving packets.
 
     printf("\n=== All TX/RX workers started successfully ===\n");
     printf("Total RX workers: %u (started first)\n", rx_param_idx);
