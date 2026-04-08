@@ -173,20 +173,18 @@ struct port_vlan_config
   }
 
 // ==========================================
-// ATE TEST MODE - PORT VLAN CONFIGURATION
+// ATE TEST MODE - PORT VLAN CONFIGURATION (Loopback)
 // ==========================================
-// DPDK port VLAN/VL-ID mapping table for ATE test mode.
-// Same structure as PORT_VLAN_CONFIG_INIT in normal mode.
-// NOTE: These values are placeholders, to be changed according to ATE topology!
+// Each port sends with TX VLAN and receives back on RX VLAN with same VL-IDX.
 // Selected at runtime based on g_ate_mode flag.
 
-#define ATE_PORT_VLAN_CONFIG_INIT                                                                                                                                                                           \
-  {                                                                                                                                                                                                         \
-    /* Port 0 */                                                                                                                                                                                            \
-    {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {1027, 1155, 1283, 1411}, .rx_vl_ids = {3, 131, 259, 387}},     /* Port 1 */  \
-        {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {1539, 1667, 1795, 1923}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 2 */  \
-        {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},          /* Port 3 */  \
-        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {515, 643, 771, 899}, .rx_vl_ids = {3, 131, 259, 387}},                   \
+#define ATE_PORT_VLAN_CONFIG_INIT                                                                                                                                                                              \
+  {                                                                                                                                                                                                            \
+    /* Port 0: TX VLAN 105-108, RX VLAN 233-236 */                                                                                                                                                            \
+    {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {602, 622, 346, 366}, .rx_vl_ids = {602, 622, 346, 366}},       /* Port 1 */     \
+        {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {522, 542, 562, 582}, .rx_vl_ids = {522, 542, 562, 582}},   /* Port 2 */     \
+        {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {161, 224, 416, 480}, .rx_vl_ids = {161, 224, 416, 480}},      /* Port 3 */     \
+        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {266, 286, 306, 326}, .rx_vl_ids = {266, 286, 306, 326}},                    \
   }
 
 // ==========================================
