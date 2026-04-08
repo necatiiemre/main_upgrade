@@ -142,7 +142,7 @@ bool Vmc::configureSequence()
     }
     shutdown.registerPsuConnected(PSUG30);
 
-    if (!g_DeviceManager.setCurrent(PSUG30, 1.5))
+    if (!g_DeviceManager.setCurrent(PSUG30, 5.0))
     {
         ErrorPrinter::error("PSU", "VMC: Failed to set current on PSU G30!");
         shutdown.executeShutdown();
