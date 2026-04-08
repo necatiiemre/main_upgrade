@@ -63,6 +63,8 @@ bool Vmc::configureSequence()
         return false;
     }
 
+    serial::sendSerialCommand("/dev/ttyACM0", "VMC_ID 1");
+
     if (!g_DeviceManager.enableOutput(PSUG30, true))
     {
         ErrorPrinter::error("PSU", "VMC: Failed to enable output on PSU G30!");
@@ -74,10 +76,8 @@ bool Vmc::configureSequence()
     // Record Unit Power On Time when PSU output is enabled
     g_ReportManager.recordUnitPowerOnTime();
 
-    serial::sendSerialCommand("/dev/ttyACM0", "VMC_ID 1");
-
     sleep(2);
-    if (!g_cumulus.deployNetworkInterfaces(SSHDeployer::getPrebuiltRoot() + "/CumulusInterfaces/vmc/interfaces"))
+    if (!g_cumulus.deployNetworkInterfaces(SSHDeployer::getPrebuiltRoot() + "/CumulusInterfaces/VMC/interfaces"))
     {
         ErrorPrinter::error("CUMULUS", "VMC: Failed to deploy network configuration!");
         shutdown.executeShutdown();
