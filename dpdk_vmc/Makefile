@@ -5,34 +5,27 @@ CC = gcc
 # Directories
 SRCDIR = src
 INCDIR = include
-PTPDIR = src/Ptp
-HEALTHDIR = src/HealthMonitor
 
 NUM_TX_CORES ?= 4
 NUM_RX_CORES ?= 4
-TARGET_GBPS_FAST ?= 3.74
-TARGET_GBPS_MID ?= 3.50
-TARGET_GBPS_SLOW ?= 3.69
+TARGET_GBPS ?= 3.74
 USE_VLAN ?=1
 
-# Enable raw socket ports (non-DPDK NICs)
-ENABLE_RAW_SOCKET_PORTS ?= 1
-
-# DTN port-based statistics mode (1=DTN 34-port table, 0=Server 8-port table)
-STATS_MODE_DTN ?= 1
+# VMC port-based statistics mode (1=VMC 34-port table, 0=Server 8-port table)
+STATS_MODE_VMC ?= 1
 
 # ATE root directory (auto-detected at build time)
 ATE_ROOT := $(shell pwd)/AteCumulus/AteTestMode
 
 # Compiler flags
-CFLAGS = -O3 -march=native -flto -ffast-math -funroll-loops -Wextra -I$(INCDIR) -I$(SRCDIR) -DNUM_TX_CORES=$(NUM_TX_CORES) -DNUM_RX_CORES=$(NUM_RX_CORES) -DUSE_VLAN=$(USE_VLAN) -DTARGET_GBPS_FAST=$(TARGET_GBPS_FAST) -DTARGET_GBPS_MID=$(TARGET_GBPS_MID) -DTARGET_GBPS_SLOW=$(TARGET_GBPS_SLOW) -DENABLE_RAW_SOCKET_PORTS=$(ENABLE_RAW_SOCKET_PORTS) -DSTATS_MODE_DTN=$(STATS_MODE_DTN) -DATE_ROOT=\"$(ATE_ROOT)\"
-DEBUG_CFLAGS = -g -O3 -DDEBUG -march=native -Wall -Wextra -I$(INCDIR) -I$(SRCDIR) -DENABLE_RAW_SOCKET_PORTS=$(ENABLE_RAW_SOCKET_PORTS) -DATE_ROOT=\"$(ATE_ROOT)\"
+CFLAGS = -O3 -march=native -flto -ffast-math -funroll-loops -Wextra -I$(INCDIR) -I$(SRCDIR) -DNUM_TX_CORES=$(NUM_TX_CORES) -DNUM_RX_CORES=$(NUM_RX_CORES) -DUSE_VLAN=$(USE_VLAN) -DTARGET_GBPS=$(TARGET_GBPS) -DSTATS_MODE_VMC=$(STATS_MODE_VMC) -DATE_ROOT=\"$(ATE_ROOT)\"
+DEBUG_CFLAGS = -g -O3 -DDEBUG -march=native -Wall -Wextra -I$(INCDIR) -I$(SRCDIR) -DATE_ROOT=\"$(ATE_ROOT)\"
 
-# Additional libraries for raw socket ports (pthread for threading)
+# Additional libraries (pthread for threading)
 EXTRA_LIBS = -lpthread
 
-# Source files (PTP and health monitor, no embedded latency for VMC)
-SOURCES = $(wildcard $(SRCDIR)/*.c) $(wildcard $(PTPDIR)/*.c) $(wildcard $(HEALTHDIR)/*.c)
+# Source files
+SOURCES = $(wildcard $(SRCDIR)/*.c)
 
 # DPDK flags
 DPDK_FLAGS = $(shell pkg-config --cflags --libs libdpdk)
@@ -53,7 +46,6 @@ all: $(APP)
 $(APP):
 	@echo "Building $(APP)..."
 	@echo "Sources: $(SOURCES)"
-	@echo "Raw Socket Ports: $(ENABLE_RAW_SOCKET_PORTS)"
 	$(CC) $(CFLAGS) $(SOURCES) -o $(APP) $(DPDK_FLAGS) $(EXTRA_LIBS)
 	@echo "✓ Build completed: $(APP)"
 

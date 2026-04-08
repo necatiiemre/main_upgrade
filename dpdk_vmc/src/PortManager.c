@@ -114,20 +114,6 @@ void print_ports_info(const struct ports_config *config)
         }
         printf("\n");
 
-#if DPDK_EXT_TX_ENABLED
-        if (i < DPDK_EXT_TX_PORT_COUNT && port->used_ext_tx_core != 0)
-        {
-            printf("  Ext TX core: %u\n", port->used_ext_tx_core);
-        }
-#endif
-
-#if PTP_ENABLED
-        if (port->used_ptp_core != 0)
-        {
-            printf("  PTP core: %u\n", port->used_ptp_core);
-        }
-#endif
-
         printf("  Status: %s\n", port->is_valid ? "Valid" : "Invalid");
         printf("\n");
     }
@@ -303,67 +289,6 @@ void lcorePortAssign(struct ports_config *config)
             }
         }
 
-#if DPDK_EXT_TX_ENABLED
-        // Assign dedicated External TX core for external TX ports
-        // Port 2,3,4,5 → Port 12 | Port 0,6 → Port 13
-        config->ports[port].used_ext_tx_core = 0; // Default: not assigned
-
-        // Check if this port is an external TX port
-        bool is_ext_tx_port = (port == 0 || port == 2 || port == 3 ||
-                               port == 4 || port == 5 || port == 6);
-
-        if (is_ext_tx_port)
-        {
-            if (unused_lcore_list[cores] != 0)
-            {
-                uint16_t lcore = lcore_list[cores];
-                unused_lcore_list[cores] = 0;
-                config->ports[port].used_ext_tx_core = lcore;
-                cores--;
-            }
-            else
-            {
-                while (unused_lcore_list[cores] == 0 && cores > 0)
-                {
-                    cores--;
-                }
-                if (cores > 0)
-                {
-                    uint16_t lcore = lcore_list[cores];
-                    unused_lcore_list[cores] = 0;
-                    config->ports[port].used_ext_tx_core = lcore;
-                    cores--;
-                }
-            }
-        }
-#endif
-
-#if PTP_ENABLED
-        // Assign dedicated PTP core for each port
-        config->ports[port].used_ptp_core = 0; // Default: not assigned
-
-        if (unused_lcore_list[cores] != 0)
-        {
-            uint16_t lcore = lcore_list[cores];
-            unused_lcore_list[cores] = 0;
-            config->ports[port].used_ptp_core = lcore;
-            cores--;
-        }
-        else
-        {
-            while (unused_lcore_list[cores] == 0 && cores > 0)
-            {
-                cores--;
-            }
-            if (cores > 0)
-            {
-                uint16_t lcore = lcore_list[cores];
-                unused_lcore_list[cores] = 0;
-                config->ports[port].used_ptp_core = lcore;
-                cores--;
-            }
-        }
-#endif
     }
 }
 

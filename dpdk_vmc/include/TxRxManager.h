@@ -18,13 +18,7 @@
 // VL-ID range limits
 // Each port may have different tx_vl_ids start values (e.g., Port 7 → 3971)
 // Each queue has a 128 VL-ID range
-// Extended for raw socket ports:
-//   - Raw Port 0 (1G): 4099-4226 (128 VL-ID)
-//   - Raw Port 1 (100M): 4227-4258 (32 VL-ID)
-// Extended for DPDK External TX:
-//   - Port 2: 4259-4386, Port 3: 4387-4514
-//   - Port 0: 4515-4642, Port 1: 4643-4770
-#define MAX_VL_ID 4800  // Increased to support DPDK external TX (up to 4770)
+#define MAX_VL_ID 4800
 #define MIN_VL_ID 3
 #define VL_RANGE_SIZE_PER_QUEUE 128  // 128 VL-IDs per queue
 
@@ -62,21 +56,18 @@ struct rx_stats
     rte_atomic64_t duplicate_pkts;     // Duplicate packets
     rte_atomic64_t short_pkts;         // Packets shorter than minimum length
     rte_atomic64_t external_pkts;      // Packets from external lines (VL-ID out of range)
-    // Raw socket packets (non-VLAN) - tracked separately from DPDK
-    rte_atomic64_t raw_socket_rx_pkts; // Packet count from raw socket
-    rte_atomic64_t raw_socket_rx_bytes; // Byte count from raw socket
 };
 
 extern struct rx_stats rx_stats_per_port[MAX_PORTS];
 
 // ==========================================
-// DTN PORT-BASED STATISTICS (STATS_MODE_DTN)
+// VMC PORT-BASED STATISTICS (STATS_MODE_VMC)
 // ==========================================
-#if STATS_MODE_DTN
+#if STATS_MODE_VMC
 
-// DTN per-port PRBS statistics
-// DTN TX (DTN→Server) quality metrics: measured on Server RX side
-struct dtn_port_stats {
+// VMC per-port PRBS statistics
+// VMC TX (VMC→Server) quality metrics: measured on Server RX side
+struct vmc_port_stats {
     rte_atomic64_t good_pkts;
     rte_atomic64_t bad_pkts;
     rte_atomic64_t bit_errors;
@@ -84,39 +75,39 @@ struct dtn_port_stats {
     rte_atomic64_t out_of_order_pkts;
     rte_atomic64_t duplicate_pkts;
     rte_atomic64_t short_pkts;
-    rte_atomic64_t total_rx_pkts;     // Server RX = DTN TX packet count
+    rte_atomic64_t total_rx_pkts;     // Server RX = VMC TX packet count
 };
 
-extern struct dtn_port_stats dtn_stats[DTN_PORT_COUNT];
+extern struct vmc_port_stats vmc_stats[VMC_PORT_COUNT];
 
-// DTN port mapping table (loaded from config at runtime)
-extern struct dtn_port_map_entry dtn_port_map[DTN_PORT_COUNT];
+// VMC port mapping table (loaded from config at runtime)
+extern struct vmc_port_map_entry vmc_port_map[VMC_PORT_COUNT];
 
-// VLAN → DTN port fast lookup table
-extern uint8_t vlan_to_dtn_port[DTN_VLAN_LOOKUP_SIZE];
-
-/**
- * Initialize DTN port mapping and VLAN lookup table
- */
-void init_dtn_port_map(void);
+// VLAN → VMC port fast lookup table
+extern uint8_t vlan_to_vmc_port[VMC_VLAN_LOOKUP_SIZE];
 
 /**
- * Initialize DTN port statistics
+ * Initialize VMC port mapping and VLAN lookup table
  */
-void init_dtn_stats(void);
+void init_vmc_port_map(void);
+
+/**
+ * Initialize VMC port statistics
+ */
+void init_vmc_stats(void);
 
 /**
  * Install VLAN-based rte_flow rules for RX queue steering
  * Each VLAN → routed to corresponding RX queue (1:1 mapping)
  */
-int dtn_flow_rules_install(uint16_t port_id);
+int vmc_flow_rules_install(uint16_t port_id);
 
 /**
  * Remove VLAN-based rte_flow rules
  */
-void dtn_flow_rules_remove(uint16_t port_id);
+void vmc_flow_rules_remove(uint16_t port_id);
 
-#endif /* STATS_MODE_DTN */
+#endif /* STATS_MODE_VMC */
 
 /**
  * VL-ID based sequence tracking (lock-free, watermark-based)

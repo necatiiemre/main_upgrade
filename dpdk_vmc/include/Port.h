@@ -1,7 +1,7 @@
 #pragma once
 #include <rte_ethdev.h>
 
-#define MAX_PORTS 8
+#define MAX_PORTS 4
 #define MAX_LCORE 32
 #define PCI_ADDR_LEN 32
 
@@ -26,8 +26,6 @@ struct port {
     struct rte_ether_addr mac_addr;      /* MAC address */
     uint16_t used_tx_cores[NUM_TX_CORES]; /* Lcores assigned to TX queues */
     uint16_t used_rx_cores[NUM_RX_CORES]; /* Lcores assigned to RX queues */
-    uint16_t used_ext_tx_core;           /* Lcore for external TX (ports 0-3) */
-    uint16_t used_ptp_core;              /* Lcore for PTP worker */
 };
 
 /**
