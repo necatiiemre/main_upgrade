@@ -8,6 +8,7 @@
 
 #include "Config.h"
 #include "TxRxManager.h"  // for rx_stats_per_port
+#include "AteMode.h"
 
 // Daemon mode flag - when true, ANSI escape codes are disabled
 bool g_daemon_mode = false;
@@ -312,9 +313,15 @@ void helper_print_stats(const struct ports_config *ports_config,
                         bool warmup_complete, unsigned loop_count, unsigned test_time)
 {
 #if STATS_MODE_VMC
-    helper_print_vmc_stats(ports_config, warmup_complete, loop_count, test_time);
-    (void)prev_tx_bytes;
-    (void)prev_rx_bytes;
+    // ATE mode always uses server port table
+    if (ate_mode_enabled()) {
+        helper_print_server_stats(ports_config, prev_tx_bytes, prev_rx_bytes,
+                                  warmup_complete, loop_count, test_time);
+    } else {
+        helper_print_vmc_stats(ports_config, warmup_complete, loop_count, test_time);
+        (void)prev_tx_bytes;
+        (void)prev_rx_bytes;
+    }
 #else
     helper_print_server_stats(ports_config, prev_tx_bytes, prev_rx_bytes,
                               warmup_complete, loop_count, test_time);
