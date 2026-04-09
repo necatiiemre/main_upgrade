@@ -1575,8 +1575,9 @@ int rx_worker(void *arg)
                     // UNIT TEST MODE: SplitMix64 + CRC32C + PRBS
                     // ==========================================
                     // 1) CRC32C check over [0..71] (SEQ + SplitMix XOR'd zone)
+                    // VMC writes CRC in big endian (network byte order)
                     uint32_t calc_crc = sw_crc32c(payload_base, SEQ_BYTES + SPLITMIX_XOR_BYTES);
-                    uint32_t recv_crc = *(uint32_t *)(payload_base + SEQ_BYTES + SPLITMIX_XOR_BYTES);
+                    uint32_t recv_crc = __builtin_bswap32(*(uint32_t *)(payload_base + SEQ_BYTES + SPLITMIX_XOR_BYTES));
                     bool crc_ok = (calc_crc == recv_crc);
 
                     // 2) Build expected SplitMix XOR zone for comparison
@@ -1625,10 +1626,11 @@ int rx_worker(void *arg)
                             memcpy(&e, expected_sm + blk * 8, 8);
                             berr += __builtin_popcountll(r ^ e);
                         }
-                        // [72..75] CRC zone
+                        // [72..75] CRC zone (big endian in packet)
                         {
-                            uint32_t exp_crc = sw_crc32c(payload_base, SEQ_BYTES + SPLITMIX_XOR_BYTES);
-                            berr += __builtin_popcount(recv_crc ^ exp_crc);
+                            uint32_t exp_crc_be = __builtin_bswap32(calc_crc);
+                            uint32_t pkt_crc_be = *(uint32_t *)(payload_base + SEQ_BYTES + SPLITMIX_XOR_BYTES);
+                            berr += __builtin_popcount(pkt_crc_be ^ exp_crc_be);
                         }
                         // [76+] PRBS zone
                         if (!prbs_ok) {
