@@ -43,60 +43,28 @@ void helper_reset_stats(const struct ports_config *ports_config,
 
 #if STATS_MODE_VMC
 // ==========================================
-// VMC PORT-BASED STATISTICS TABLE
+// VMC PORT-BASED STATISTICS - 3-TABLE DISPLAY
 // ==========================================
-// 32 rows: VMC Port 0-31 (DPDK)
-// Columns: TX Pkts/Bytes/Gbps | RX Pkts/Bytes/Gbps | Good/Bad/Lost/BitErr/BER
-//
+// Groups 16 VMC ports into VSCPU / FCPU / CROSS tables.
 // VMC TX (VMC→Server) = Server RX = HW q_ipackets[queue]
 // VMC RX (Server→VMC) = Server TX = HW q_opackets[queue]
 // PRBS = vmc_stats[vmc_port] (from RX worker)
 
-// Per-queue prev bytes (for per-VMC-port delta calculation)
-// [vmc_port][0=tx_bytes, 1=rx_bytes]
+// Per-VMC-port prev bytes for delta calculation
 static uint64_t vmc_prev_tx_bytes[VMC_PORT_COUNT];
 static uint64_t vmc_prev_rx_bytes[VMC_PORT_COUNT];
 
-static void helper_print_vmc_stats(const struct ports_config *ports_config,
-                                   bool warmup_complete, unsigned loop_count,
-                                   unsigned test_time)
+static void print_vmc_table_group(const uint16_t *indices, uint16_t count,
+                                  const struct rte_eth_stats port_hw_stats[])
 {
-    // Clear the screen
-    if (!g_daemon_mode) {
-        printf("\033[2J\033[H");
-    } else {
-        printf("\n========== [%s %u sec] ==========\n",
-               warmup_complete ? "TEST" : "WARM-UP",
-               warmup_complete ? test_time : loop_count);
-    }
+    printf("  ┌─────────┬────────┬─────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
+    printf("  │ Server  │  VMC   │                          VMC TX (VMC→Server)                        │                          VMC RX (Server→VMC)                        │                                              Payload Verification                                                              │\n");
+    printf("  │  Port   │  Port  ├─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────┤\n");
+    printf("  │         │        │       Packets       │        Bytes        │          Gbps           │       Packets       │        Bytes        │          Gbps           │        Good         │         Bad         │  SplitMix64 Fail    │    CRC32 Fail       │        Loss         │      Bit Error      │     BER     │\n");
+    printf("  ├─────────┼────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────┤\n");
 
-    // Header
-    printf("╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗\n");
-    if (!warmup_complete) {
-        printf("║                                                              VMC PORT STATS - WARM-UP (%3u/120 sec)                                                                                                                          ║\n", loop_count);
-    } else {
-        printf("║                                                              VMC PORT STATS - TEST Duration: %5u sec                                                                                                                         ║\n", test_time);
-    }
-    printf("╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝\n\n");
-
-    // Table header
-    printf("┌──────┬─────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
-    printf("│ VMC  │                          VMC TX (VMC→Server)                        │                          VMC RX (Server→VMC)                        │                                      PRBS Verification                                               │\n");
-    printf("│ Port ├─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────┤\n");
-    printf("│      │       Packets       │        Bytes        │          Gbps           │       Packets       │        Bytes        │          Gbps           │        Good         │         Bad         │        Lost         │      Bit Error      │     BER     │\n");
-    printf("├──────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────┤\n");
-
-    // Fetch HW stats once (per port)
-    struct rte_eth_stats port_hw_stats[MAX_PORTS];
-    for (uint16_t i = 0; i < ports_config->nb_ports; i++) {
-        uint16_t port_id = ports_config->ports[i].port_id;
-        if (rte_eth_stats_get(port_id, &port_hw_stats[port_id]) != 0) {
-            memset(&port_hw_stats[port_id], 0, sizeof(struct rte_eth_stats));
-        }
-    }
-
-    // VMC Port 0-31 (DPDK ports)
-    for (uint16_t vmc = 0; vmc < VMC_DPDK_PORT_COUNT; vmc++) {
+    for (uint16_t i = 0; i < count; i++) {
+        uint16_t vmc = indices[i];
         const struct vmc_port_map_entry *entry = &vmc_port_map[vmc];
 
         // VMC TX (VMC→Server) = Server RX = HW q_ipackets[queue] on tx_server_port
@@ -121,13 +89,14 @@ static void helper_print_vmc_stats(const struct ports_config *ports_config,
         vmc_prev_tx_bytes[vmc] = vmc_tx_bytes;
         vmc_prev_rx_bytes[vmc] = vmc_rx_bytes;
 
-        // PRBS statistics (from vmc_stats)
+        // Payload verification statistics
         uint64_t good = rte_atomic64_read(&vmc_stats[vmc].good_pkts);
         uint64_t bad = rte_atomic64_read(&vmc_stats[vmc].bad_pkts);
+        uint64_t sm_fail = rte_atomic64_read(&vmc_stats[vmc].splitmix_fail);
+        uint64_t crc_fail = rte_atomic64_read(&vmc_stats[vmc].crc32_fail);
         uint64_t lost = rte_atomic64_read(&vmc_stats[vmc].lost_pkts);
         uint64_t bit_errors_raw = rte_atomic64_read(&vmc_stats[vmc].bit_errors);
 
-        // Include lost packets in bit_errors (each lost packet = all bits erroneous)
 #if IMIX_ENABLED
         uint64_t lost_bits = lost * (uint64_t)IMIX_AVG_PACKET_SIZE * 8;
 #else
@@ -135,26 +104,72 @@ static void helper_print_vmc_stats(const struct ports_config *ports_config,
 #endif
         uint64_t bit_errors = bit_errors_raw + lost_bits;
 
-        // BER calculation (lost packet bits added to total)
         double ber = 0.0;
         uint64_t total_bits = vmc_tx_bytes * 8 + lost_bits;
         if (total_bits > 0) {
             ber = (double)bit_errors / (double)total_bits;
         }
 
-        printf("│  %2u  │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
-               vmc,
+        printf("  │    %u    │ %-6s │ %19lu │ %19lu │ %23.4f │ %19lu │ %19lu │ %23.4f │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
+               entry->rx_server_port,
+               vmc_port_labels[vmc],
                vmc_tx_pkts, vmc_tx_bytes, tx_gbps,
                vmc_rx_pkts, vmc_rx_bytes, rx_gbps,
-               good, bad, lost, bit_errors, ber);
+               good, bad, sm_fail, crc_fail, lost, bit_errors, ber);
     }
 
-    printf("└──────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────┘\n");
+    printf("  └─────────┴────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────┘\n");
+}
 
-    // VMC warnings
+static void helper_print_vmc_stats(const struct ports_config *ports_config,
+                                   bool warmup_complete, unsigned loop_count,
+                                   unsigned test_time)
+{
+    // Clear the screen
+    if (!g_daemon_mode) {
+        printf("\033[2J\033[H");
+    } else {
+        printf("\n========== [%s %u sec] ==========\n",
+               warmup_complete ? "TEST" : "WARM-UP",
+               warmup_complete ? test_time : loop_count);
+    }
+
+    // Header
+    printf("╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗\n");
+    if (!warmup_complete) {
+        printf("║                                                              VMC PORT STATS - WARM-UP (%3u/120 sec)                                                                                                                                  ║\n", loop_count);
+    } else {
+        printf("║                                                              VMC PORT STATS - TEST Duration: %5u sec                                                                                                                                 ║\n", test_time);
+    }
+    printf("╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝\n");
+
+    // Fetch HW stats once (per port)
+    struct rte_eth_stats port_hw_stats[MAX_PORTS];
+    for (uint16_t i = 0; i < ports_config->nb_ports; i++) {
+        uint16_t port_id = ports_config->ports[i].port_id;
+        if (rte_eth_stats_get(port_id, &port_hw_stats[port_id]) != 0) {
+            memset(&port_hw_stats[port_id], 0, sizeof(struct rte_eth_stats));
+        }
+    }
+
+    // Table 1: VSCPU
+    printf("\n  === VSCPU (Server Port 2: J4-1,J4-2 | Port 3: J5-1..J5-4 | Port 0: J6-3) ===\n");
+    print_vmc_table_group(vscpu_vmc_indices, VSCPU_COUNT, port_hw_stats);
+
+    // Table 2: FCPU
+    printf("\n  === FCPU (Server Port 2: J4-3,J4-4 | Port 1: J7-1..J7-4 | Port 0: J6-1) ===\n");
+    print_vmc_table_group(fcpu_vmc_indices, FCPU_COUNT, port_hw_stats);
+
+    // Table 3: Cross
+    printf("\n  === CROSS (Port 0: J6-2 TX->J6-4 RX, J6-4 TX->J6-2 RX) ===\n");
+    print_vmc_table_group(cross_vmc_indices, CROSS_COUNT, port_hw_stats);
+
+    // Warnings
     bool has_warning = false;
     for (uint16_t vmc = 0; vmc < VMC_DPDK_PORT_COUNT; vmc++) {
         uint64_t bad = rte_atomic64_read(&vmc_stats[vmc].bad_pkts);
+        uint64_t sm_fail = rte_atomic64_read(&vmc_stats[vmc].splitmix_fail);
+        uint64_t crc_fail = rte_atomic64_read(&vmc_stats[vmc].crc32_fail);
         uint64_t bit_err = rte_atomic64_read(&vmc_stats[vmc].bit_errors);
         uint64_t lost = rte_atomic64_read(&vmc_stats[vmc].lost_pkts);
 
@@ -164,11 +179,11 @@ static void helper_print_vmc_stats(const struct ports_config *ports_config,
                 has_warning = true;
             }
             if (bad > 0)
-                printf("      VMC Port %u: %lu bad packets!\n", vmc, bad);
+                printf("      %s (VMC %u): %lu bad packets! (SM:%lu CRC:%lu)\n", vmc_port_labels[vmc], vmc, bad, sm_fail, crc_fail);
             if (bit_err > 0)
-                printf("      VMC Port %u: %lu bit errors!\n", vmc, bit_err);
+                printf("      %s (VMC %u): %lu bit errors!\n", vmc_port_labels[vmc], vmc, bit_err);
             if (lost > 0)
-                printf("      VMC Port %u: %lu lost packets!\n", vmc, lost);
+                printf("      %s (VMC %u): %lu lost packets!\n", vmc_port_labels[vmc], vmc, lost);
         }
     }
 
@@ -255,7 +270,7 @@ static void helper_print_server_stats(const struct ports_config *ports_config,
         }
 
         // Print table row
-        printf("│  %2u  │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
+        printf("│  %2u  │ %19lu │ %19lu │ %23.4f │ %19lu │ %19lu │ %23.4f │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
                port_id,
                tx_pkts, tx_bytes, tx_gbps,
                rx_pkts, rx_bytes, rx_gbps,
@@ -306,18 +321,20 @@ static void helper_print_server_stats(const struct ports_config *ports_config,
 // ==========================================
 // PUBLIC API: helper_print_stats
 // ==========================================
-// Draws VMC or Server table based on STATS_MODE_VMC flag
+// Normal mode: 3-table VMC display (VSCPU / FCPU / Cross)
+// ATE mode: Server port table (loopback)
 
 void helper_print_stats(const struct ports_config *ports_config,
                         const uint64_t prev_tx_bytes[], const uint64_t prev_rx_bytes[],
                         bool warmup_complete, unsigned loop_count, unsigned test_time)
 {
 #if STATS_MODE_VMC
-    // ATE mode always uses server port table
     if (ate_mode_enabled()) {
+        // ATE mode: server port table (loopback)
         helper_print_server_stats(ports_config, prev_tx_bytes, prev_rx_bytes,
                                   warmup_complete, loop_count, test_time);
     } else {
+        // Normal mode: 3 tables (VSCPU / FCPU / Cross) with VMC port-level stats
         helper_print_vmc_stats(ports_config, warmup_complete, loop_count, test_time);
         (void)prev_tx_bytes;
         (void)prev_rx_bytes;

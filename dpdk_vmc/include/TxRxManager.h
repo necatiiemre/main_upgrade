@@ -65,11 +65,13 @@ extern struct rx_stats rx_stats_per_port[MAX_PORTS];
 // ==========================================
 #if STATS_MODE_VMC
 
-// VMC per-port PRBS statistics
+// VMC per-port payload verification statistics
 // VMC TX (VMC→Server) quality metrics: measured on Server RX side
 struct vmc_port_stats {
     rte_atomic64_t good_pkts;
     rte_atomic64_t bad_pkts;
+    rte_atomic64_t splitmix_fail;    // SplitMix64+CRC32C verification failed
+    rte_atomic64_t crc32_fail;       // CRC32C mismatch
     rte_atomic64_t bit_errors;
     rte_atomic64_t lost_pkts;
     rte_atomic64_t out_of_order_pkts;
