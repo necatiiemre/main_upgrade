@@ -110,7 +110,7 @@ static void print_vmc_table_group(const uint16_t *indices, uint16_t count,
             ber = (double)bit_errors / (double)total_bits;
         }
 
-        printf("  │    %u    │ %-6s │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
+        printf("  │    %u    │ %-6s │ %19lu │ %19lu │ %23.3f │ %19lu │ %19lu │ %23.3f │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
                entry->rx_server_port,
                vmc_port_labels[vmc],
                vmc_tx_pkts, vmc_tx_bytes, tx_gbps,
@@ -270,7 +270,7 @@ static void helper_print_server_stats(const struct ports_config *ports_config,
         }
 
         // Print table row
-        printf("│  %2u  │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
+        printf("│  %2u  │ %19lu │ %19lu │ %23.3f │ %19lu │ %19lu │ %23.3f │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
                port_id,
                tx_pkts, tx_bytes, tx_gbps,
                rx_pkts, rx_bytes, rx_gbps,
