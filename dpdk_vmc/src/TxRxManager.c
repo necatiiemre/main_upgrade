@@ -37,11 +37,8 @@ struct rx_stats rx_stats_per_port[MAX_PORTS];
 // VMC per-port statistics
 struct vmc_port_stats vmc_stats[VMC_PORT_COUNT];
 
-// VMC port mapping table (default: normal mode, overwritten by ATE map at runtime)
+// VMC port mapping table
 struct vmc_port_map_entry vmc_port_map[VMC_PORT_COUNT] = VMC_PORT_MAP_INIT;
-
-// ATE mode VMC port mapping (VSCPU/FCPU/Cross groups)
-static const struct vmc_port_map_entry ate_vmc_port_map_init[VMC_PORT_COUNT] = ATE_VMC_PORT_MAP_INIT;
 
 // VLAN → VMC port fast lookup table
 uint8_t vlan_to_vmc_port[VMC_VLAN_LOOKUP_SIZE];
@@ -416,12 +413,6 @@ void init_rx_stats(void)
 
 void init_vmc_port_map(void)
 {
-    // Load ATE VMC port map if ATE mode is active
-    if (ate_mode_enabled()) {
-        memcpy(vmc_port_map, ate_vmc_port_map_init, sizeof(vmc_port_map));
-        printf("[ATE] ATE VMC port mapping loaded (VSCPU/FCPU/Cross)\n");
-    }
-
     // Fill the VLAN → VMC port lookup table
     memset(vlan_to_vmc_port, VMC_VLAN_INVALID, sizeof(vlan_to_vmc_port));
 
