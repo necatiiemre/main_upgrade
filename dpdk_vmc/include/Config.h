@@ -503,4 +503,76 @@ struct vmc_port_map_entry {
 #define VMC_VLAN_LOOKUP_SIZE 257  // VLAN 0-256
 #define VMC_VLAN_INVALID 0xFF
 
+// ==========================================
+// ATE TEST MODE - VMC PORT MAPPING TABLE
+// ==========================================
+// 3 groups: VSCPU (7), FCPU (7), Cross (2) = 16 total
+// Each group tests different server port connections through VMC.
+//
+// VSCPU: Server Port 2 (J4-1,J4-2), Port 3 (J5-1..J5-4), Port 0 (J6-3)
+// FCPU:  Server Port 2 (J4-3,J4-4), Port 1 (J7-1..J7-4), Port 0 (J6-1)
+// Cross: Server Port 0 (J6-2↔J6-4) - TX/RX crossed
+//
+// Loopback: Server TX VLAN → VMC → Server RX VLAN (same port, same queue)
+// Cross:    Server TX J6-2 → VMC → Server RX J6-4 (and vice versa)
+
+#define ATE_VSCPU_START  0
+#define ATE_VSCPU_COUNT  7
+#define ATE_FCPU_START   7
+#define ATE_FCPU_COUNT   7
+#define ATE_CROSS_START  14
+#define ATE_CROSS_COUNT  2
+
+#define ATE_VMC_PORT_MAP_INIT {                                                                         \
+    /* ===== VSCPU TABLE (VMC 0-6) ===== */                                                             \
+    /* Port 2: J4-1, J4-2 */                                                                            \
+    {.vmc_port_id = 0,  .rx_vlan = 97,  .rx_server_port = 2, .rx_server_queue = 0,                      \
+                         .tx_vlan = 225, .tx_server_port = 2, .tx_server_queue = 0},                     \
+    {.vmc_port_id = 1,  .rx_vlan = 98,  .rx_server_port = 2, .rx_server_queue = 1,                      \
+                         .tx_vlan = 226, .tx_server_port = 2, .tx_server_queue = 1},                     \
+    /* Port 3: J5-1, J5-2, J5-3, J5-4 */                                                                \
+    {.vmc_port_id = 2,  .rx_vlan = 101, .rx_server_port = 3, .rx_server_queue = 0,                      \
+                         .tx_vlan = 229, .tx_server_port = 3, .tx_server_queue = 0},                     \
+    {.vmc_port_id = 3,  .rx_vlan = 102, .rx_server_port = 3, .rx_server_queue = 1,                      \
+                         .tx_vlan = 230, .tx_server_port = 3, .tx_server_queue = 1},                     \
+    {.vmc_port_id = 4,  .rx_vlan = 103, .rx_server_port = 3, .rx_server_queue = 2,                      \
+                         .tx_vlan = 231, .tx_server_port = 3, .tx_server_queue = 2},                     \
+    {.vmc_port_id = 5,  .rx_vlan = 104, .rx_server_port = 3, .rx_server_queue = 3,                      \
+                         .tx_vlan = 232, .tx_server_port = 3, .tx_server_queue = 3},                     \
+    /* Port 0: J6-3 */                                                                                   \
+    {.vmc_port_id = 6,  .rx_vlan = 107, .rx_server_port = 0, .rx_server_queue = 2,                      \
+                         .tx_vlan = 235, .tx_server_port = 0, .tx_server_queue = 2},                     \
+    /* ===== FCPU TABLE (VMC 7-13) ===== */                                                              \
+    /* Port 2: J4-3, J4-4 */                                                                             \
+    {.vmc_port_id = 7,  .rx_vlan = 99,  .rx_server_port = 2, .rx_server_queue = 2,                      \
+                         .tx_vlan = 227, .tx_server_port = 2, .tx_server_queue = 2},                     \
+    {.vmc_port_id = 8,  .rx_vlan = 100, .rx_server_port = 2, .rx_server_queue = 3,                      \
+                         .tx_vlan = 228, .tx_server_port = 2, .tx_server_queue = 3},                     \
+    /* Port 1: J7-1, J7-2, J7-3, J7-4 */                                                                \
+    {.vmc_port_id = 9,  .rx_vlan = 109, .rx_server_port = 1, .rx_server_queue = 0,                      \
+                         .tx_vlan = 237, .tx_server_port = 1, .tx_server_queue = 0},                     \
+    {.vmc_port_id = 10, .rx_vlan = 110, .rx_server_port = 1, .rx_server_queue = 1,                      \
+                         .tx_vlan = 238, .tx_server_port = 1, .tx_server_queue = 1},                     \
+    {.vmc_port_id = 11, .rx_vlan = 111, .rx_server_port = 1, .rx_server_queue = 2,                      \
+                         .tx_vlan = 239, .tx_server_port = 1, .tx_server_queue = 2},                     \
+    {.vmc_port_id = 12, .rx_vlan = 112, .rx_server_port = 1, .rx_server_queue = 3,                      \
+                         .tx_vlan = 240, .tx_server_port = 1, .tx_server_queue = 3},                     \
+    /* Port 0: J6-1 */                                                                                   \
+    {.vmc_port_id = 13, .rx_vlan = 105, .rx_server_port = 0, .rx_server_queue = 0,                      \
+                         .tx_vlan = 233, .tx_server_port = 0, .tx_server_queue = 0},                     \
+    /* ===== CROSS TABLE (VMC 14-15) ===== */                                                            \
+    /* J6-2 TX → J6-4 RX, J6-4 TX → J6-2 RX */                                                         \
+    {.vmc_port_id = 14, .rx_vlan = 106, .rx_server_port = 0, .rx_server_queue = 1,                      \
+                         .tx_vlan = 236, .tx_server_port = 0, .tx_server_queue = 3},                     \
+    {.vmc_port_id = 15, .rx_vlan = 108, .rx_server_port = 0, .rx_server_queue = 3,                      \
+                         .tx_vlan = 234, .tx_server_port = 0, .tx_server_queue = 1},                     \
+}
+
+// ATE VMC port J-labels for display
+static const char * const ate_vmc_labels[VMC_PORT_COUNT] = {
+    "J4-1", "J4-2", "J5-1", "J5-2", "J5-3", "J5-4", "J6-3",   /* VSCPU */
+    "J4-3", "J4-4", "J7-1", "J7-2", "J7-3", "J7-4", "J6-1",   /* FCPU  */
+    "J6-2", "J6-4"                                                /* Cross */
+};
+
 #endif /* CONFIG_H */
