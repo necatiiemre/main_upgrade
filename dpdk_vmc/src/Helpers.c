@@ -57,11 +57,11 @@ static uint64_t vmc_prev_rx_bytes[VMC_PORT_COUNT];
 static void print_vmc_table_group(const uint16_t *indices, uint16_t count,
                                   const struct rte_eth_stats port_hw_stats[])
 {
-    printf("  ┌─────────┬────────┬─────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
-    printf("  │ Server  │  VMC   │                          VMC TX (VMC→Server)                        │                          VMC RX (Server→VMC)                        │                                      PRBS Verification                                               │\n");
-    printf("  │  Port   │  Port  ├─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────┤\n");
-    printf("  │         │        │       Packets       │        Bytes        │          Gbps           │       Packets       │        Bytes        │          Gbps           │        Good         │         Bad         │        Lost         │      Bit Error      │     BER     │\n");
-    printf("  ├─────────┼────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────┤\n");
+    printf("  ┌─────────┬────────┬─────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐\n");
+    printf("  │ Server  │  VMC   │                          VMC TX (VMC→Server)                        │                          VMC RX (Server→VMC)                        │                                              Payload Verification                                                              │\n");
+    printf("  │  Port   │  Port  ├─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────────┼─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┬─────────────┤\n");
+    printf("  │         │        │       Packets       │        Bytes        │          Gbps           │       Packets       │        Bytes        │          Gbps           │        Good         │         Bad         │      SplitMix       │        CRC32        │        Loss         │      Bit Error      │     BER     │\n");
+    printf("  ├─────────┼────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┼─────────────┤\n");
 
     for (uint16_t i = 0; i < count; i++) {
         uint16_t vmc = indices[i];
@@ -89,9 +89,11 @@ static void print_vmc_table_group(const uint16_t *indices, uint16_t count,
         vmc_prev_tx_bytes[vmc] = vmc_tx_bytes;
         vmc_prev_rx_bytes[vmc] = vmc_rx_bytes;
 
-        // PRBS statistics
+        // Payload verification statistics
         uint64_t good = rte_atomic64_read(&vmc_stats[vmc].good_pkts);
         uint64_t bad = rte_atomic64_read(&vmc_stats[vmc].bad_pkts);
+        uint64_t sm_fail = rte_atomic64_read(&vmc_stats[vmc].splitmix_fail);
+        uint64_t crc_fail = rte_atomic64_read(&vmc_stats[vmc].crc32_fail);
         uint64_t lost = rte_atomic64_read(&vmc_stats[vmc].lost_pkts);
         uint64_t bit_errors_raw = rte_atomic64_read(&vmc_stats[vmc].bit_errors);
 
@@ -108,15 +110,15 @@ static void print_vmc_table_group(const uint16_t *indices, uint16_t count,
             ber = (double)bit_errors / (double)total_bits;
         }
 
-        printf("  │    %u    │ %-6s │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
+        printf("  │    %u    │ %-6s │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %23.2f │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %19lu │ %11.2e │\n",
                entry->rx_server_port,
                vmc_port_labels[vmc],
                vmc_tx_pkts, vmc_tx_bytes, tx_gbps,
                vmc_rx_pkts, vmc_rx_bytes, rx_gbps,
-               good, bad, lost, bit_errors, ber);
+               good, bad, sm_fail, crc_fail, lost, bit_errors, ber);
     }
 
-    printf("  └─────────┴────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────┘\n");
+    printf("  └─────────┴────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┴─────────────┘\n");
 }
 
 static void helper_print_vmc_stats(const struct ports_config *ports_config,
@@ -166,6 +168,8 @@ static void helper_print_vmc_stats(const struct ports_config *ports_config,
     bool has_warning = false;
     for (uint16_t vmc = 0; vmc < VMC_DPDK_PORT_COUNT; vmc++) {
         uint64_t bad = rte_atomic64_read(&vmc_stats[vmc].bad_pkts);
+        uint64_t sm_fail = rte_atomic64_read(&vmc_stats[vmc].splitmix_fail);
+        uint64_t crc_fail = rte_atomic64_read(&vmc_stats[vmc].crc32_fail);
         uint64_t bit_err = rte_atomic64_read(&vmc_stats[vmc].bit_errors);
         uint64_t lost = rte_atomic64_read(&vmc_stats[vmc].lost_pkts);
 
@@ -175,7 +179,7 @@ static void helper_print_vmc_stats(const struct ports_config *ports_config,
                 has_warning = true;
             }
             if (bad > 0)
-                printf("      %s (VMC %u): %lu bad packets!\n", vmc_port_labels[vmc], vmc, bad);
+                printf("      %s (VMC %u): %lu bad packets! (SM:%lu CRC:%lu)\n", vmc_port_labels[vmc], vmc, bad, sm_fail, crc_fail);
             if (bit_err > 0)
                 printf("      %s (VMC %u): %lu bit errors!\n", vmc_port_labels[vmc], vmc, bit_err);
             if (lost > 0)
