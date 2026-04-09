@@ -1761,10 +1761,8 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
     {
         struct port *port = &ports_config->ports[port_idx];
         uint16_t port_id = port->port_id;
-        // ATE loopback: packets return to same port, so src = self
-        // Normal mode: packets come from paired port (0↔1, 2↔3)
-        uint16_t paired_port_id = ate_mode_enabled() ? port_id :
-            ((port_id % 2 == 0) ? (uint16_t)(port_id + 1) : (uint16_t)(port_id - 1));
+        // Loopback: packets return to same port (both unit test and ATE mode)
+        uint16_t paired_port_id = port_id;
 
         printf("\n--- Port %u RX (Receiving from Port %u) ---\n", port_id, paired_port_id);
 
@@ -1822,10 +1820,8 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
     {
         struct port *port = &ports_config->ports[port_idx];
         uint16_t port_id = port->port_id;
-        // ATE loopback: TX goes to self (loopback cable)
-        // Normal mode: TX goes to paired port (0↔1, 2↔3)
-        uint16_t paired_port_id = ate_mode_enabled() ? port_id :
-            ((port_id % 2 == 0) ? (uint16_t)(port_id + 1) : (uint16_t)(port_id - 1));
+        // Loopback: TX goes to self (both unit test and ATE mode)
+        uint16_t paired_port_id = port_id;
 
         printf("\n--- Port %u TX (Sending to Port %u) ---\n", port_id, paired_port_id);
 
