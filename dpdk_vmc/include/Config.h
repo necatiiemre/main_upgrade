@@ -166,13 +166,15 @@ struct port_vlan_config
 };
 
 // Per-port VLAN/VL-ID template (queue index ↔ VL range start matches)
-#define PORT_VLAN_CONFIG_INIT                                                                                                                                                                               \
-  {                                                                                                                                                                                                         \
-    /* Port 0 */                                                                                                                                                                                            \
-    {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {253, 254, 255, 256}, .rx_vlan_count = 4, .tx_vl_ids = {1027, 1155, 1283, 1411}, .rx_vl_ids = {3, 131, 259, 387}},     /* Port 1 */  \
-        {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {249, 250, 251, 252}, .rx_vlan_count = 4, .tx_vl_ids = {1539, 1667, 1795, 1923}, .rx_vl_ids = {3, 131, 259, 387}}, /* Port 2 */  \
-        {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {245, 246, 247, 248}, .rx_vlan_count = 4, .tx_vl_ids = {3, 131, 259, 387}, .rx_vl_ids = {3, 131, 259, 387}},          /* Port 3 */  \
-        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {241, 242, 243, 244}, .rx_vlan_count = 4, .tx_vl_ids = {515, 643, 771, 899}, .rx_vl_ids = {3, 131, 259, 387}},                   \
+// Unit test mode: loopback (same port TX→RX), cross for J6-2↔J6-4
+// VL-ID counts are variable per queue (tx_vl_counts required)
+#define PORT_VLAN_CONFIG_INIT                                                                                                                                                                                                                               \
+  {                                                                                                                                                                                                                                                         \
+    /* Port 0: TX 105-108, RX 233-236 (J6-1 loopback, J6-2/J6-4 cross, J6-3 loopback) */                                                                                                                                                                  \
+    {.tx_vlans = {105, 106, 107, 108}, .tx_vlan_count = 4, .rx_vlans = {233, 234, 235, 236}, .rx_vlan_count = 4, .tx_vl_ids = {602, 622, 346, 366}, .rx_vl_ids = {592, 612, 336, 356}, .tx_vl_counts = {10, 6, 10, 6}},       /* Port 1 */                 \
+        {.tx_vlans = {109, 110, 111, 112}, .tx_vlan_count = 4, .rx_vlans = {237, 238, 239, 240}, .rx_vlan_count = 4, .tx_vl_ids = {522, 542, 562, 582}, .rx_vl_ids = {512, 532, 552, 572}, .tx_vl_counts = {10, 10, 10, 10}}, /* Port 2 */                 \
+        {.tx_vlans = {97, 98, 99, 100}, .tx_vlan_count = 4, .rx_vlans = {225, 226, 227, 228}, .rx_vlan_count = 4, .tx_vl_ids = {161, 224, 417, 480}, .rx_vl_ids = {129, 192, 385, 448}, .tx_vl_counts = {29, 30, 31, 32}},    /* Port 3 */                 \
+        {.tx_vlans = {101, 102, 103, 104}, .tx_vlan_count = 4, .rx_vlans = {229, 230, 231, 232}, .rx_vlan_count = 4, .tx_vl_ids = {266, 286, 306, 326}, .rx_vl_ids = {256, 276, 296, 316}, .tx_vl_counts = {10, 10, 10, 10}},                              \
   }
 
 // ==========================================
@@ -457,45 +459,45 @@ struct vmc_port_map_entry {
 };
 
 // VMC Port Mapping Table (4 server ports × 4 VLANs = 16 VMC ports)
-// Pairs: Port 0↔1, Port 2↔3
+// Loopback: same port TX→RX, except Cross (J6-2↔J6-4)
 // Format: {vmc_port, rx_vlan, rx_srv_port, rx_srv_queue, tx_vlan, tx_srv_port, tx_srv_queue}
 #define VMC_PORT_MAP_INIT {                                                                         \
-    /* VMC 0-3:   Server TX=Port0(VLAN 105-108), Server RX=Port1(VLAN 249-252) */                   \
+    /* VMC 0-3: Port 0 (J6-1 loopback, J6-2/J6-4 cross, J6-3 loopback) */                          \
     {.vmc_port_id = 0,  .rx_vlan = 105, .rx_server_port = 0, .rx_server_queue = 0,                  \
-                         .tx_vlan = 249, .tx_server_port = 1, .tx_server_queue = 0},                 \
+                         .tx_vlan = 233, .tx_server_port = 0, .tx_server_queue = 0},                 \
     {.vmc_port_id = 1,  .rx_vlan = 106, .rx_server_port = 0, .rx_server_queue = 1,                  \
-                         .tx_vlan = 250, .tx_server_port = 1, .tx_server_queue = 1},                 \
+                         .tx_vlan = 236, .tx_server_port = 0, .tx_server_queue = 3},  /* Cross */    \
     {.vmc_port_id = 2,  .rx_vlan = 107, .rx_server_port = 0, .rx_server_queue = 2,                  \
-                         .tx_vlan = 251, .tx_server_port = 1, .tx_server_queue = 2},                 \
+                         .tx_vlan = 235, .tx_server_port = 0, .tx_server_queue = 2},                 \
     {.vmc_port_id = 3,  .rx_vlan = 108, .rx_server_port = 0, .rx_server_queue = 3,                  \
-                         .tx_vlan = 252, .tx_server_port = 1, .tx_server_queue = 3},                 \
-    /* VMC 4-7:   Server TX=Port1(VLAN 109-112), Server RX=Port0(VLAN 253-256) */                   \
+                         .tx_vlan = 234, .tx_server_port = 0, .tx_server_queue = 1},  /* Cross */    \
+    /* VMC 4-7: Port 1 (J7-1..J7-4, all loopback) */                                                \
     {.vmc_port_id = 4,  .rx_vlan = 109, .rx_server_port = 1, .rx_server_queue = 0,                  \
-                         .tx_vlan = 253, .tx_server_port = 0, .tx_server_queue = 0},                 \
+                         .tx_vlan = 237, .tx_server_port = 1, .tx_server_queue = 0},                 \
     {.vmc_port_id = 5,  .rx_vlan = 110, .rx_server_port = 1, .rx_server_queue = 1,                  \
-                         .tx_vlan = 254, .tx_server_port = 0, .tx_server_queue = 1},                 \
+                         .tx_vlan = 238, .tx_server_port = 1, .tx_server_queue = 1},                 \
     {.vmc_port_id = 6,  .rx_vlan = 111, .rx_server_port = 1, .rx_server_queue = 2,                  \
-                         .tx_vlan = 255, .tx_server_port = 0, .tx_server_queue = 2},                 \
+                         .tx_vlan = 239, .tx_server_port = 1, .tx_server_queue = 2},                 \
     {.vmc_port_id = 7,  .rx_vlan = 112, .rx_server_port = 1, .rx_server_queue = 3,                  \
-                         .tx_vlan = 256, .tx_server_port = 0, .tx_server_queue = 3},                 \
-    /* VMC 8-11:  Server TX=Port2(VLAN 97-100),  Server RX=Port3(VLAN 241-244) */                   \
+                         .tx_vlan = 240, .tx_server_port = 1, .tx_server_queue = 3},                 \
+    /* VMC 8-11: Port 2 (J4-1..J4-4, all loopback) */                                               \
     {.vmc_port_id = 8,  .rx_vlan = 97,  .rx_server_port = 2, .rx_server_queue = 0,                  \
-                         .tx_vlan = 241, .tx_server_port = 3, .tx_server_queue = 0},                 \
+                         .tx_vlan = 225, .tx_server_port = 2, .tx_server_queue = 0},                 \
     {.vmc_port_id = 9,  .rx_vlan = 98,  .rx_server_port = 2, .rx_server_queue = 1,                  \
-                         .tx_vlan = 242, .tx_server_port = 3, .tx_server_queue = 1},                 \
+                         .tx_vlan = 226, .tx_server_port = 2, .tx_server_queue = 1},                 \
     {.vmc_port_id = 10, .rx_vlan = 99,  .rx_server_port = 2, .rx_server_queue = 2,                  \
-                         .tx_vlan = 243, .tx_server_port = 3, .tx_server_queue = 2},                 \
+                         .tx_vlan = 227, .tx_server_port = 2, .tx_server_queue = 2},                 \
     {.vmc_port_id = 11, .rx_vlan = 100, .rx_server_port = 2, .rx_server_queue = 3,                  \
-                         .tx_vlan = 244, .tx_server_port = 3, .tx_server_queue = 3},                 \
-    /* VMC 12-15: Server TX=Port3(VLAN 101-104), Server RX=Port2(VLAN 245-248) */                   \
+                         .tx_vlan = 228, .tx_server_port = 2, .tx_server_queue = 3},                 \
+    /* VMC 12-15: Port 3 (J5-1..J5-4, all loopback) */                                              \
     {.vmc_port_id = 12, .rx_vlan = 101, .rx_server_port = 3, .rx_server_queue = 0,                  \
-                         .tx_vlan = 245, .tx_server_port = 2, .tx_server_queue = 0},                 \
+                         .tx_vlan = 229, .tx_server_port = 3, .tx_server_queue = 0},                 \
     {.vmc_port_id = 13, .rx_vlan = 102, .rx_server_port = 3, .rx_server_queue = 1,                  \
-                         .tx_vlan = 246, .tx_server_port = 2, .tx_server_queue = 1},                 \
+                         .tx_vlan = 230, .tx_server_port = 3, .tx_server_queue = 1},                 \
     {.vmc_port_id = 14, .rx_vlan = 103, .rx_server_port = 3, .rx_server_queue = 2,                  \
-                         .tx_vlan = 247, .tx_server_port = 2, .tx_server_queue = 2},                 \
+                         .tx_vlan = 231, .tx_server_port = 3, .tx_server_queue = 2},                 \
     {.vmc_port_id = 15, .rx_vlan = 104, .rx_server_port = 3, .rx_server_queue = 3,                  \
-                         .tx_vlan = 248, .tx_server_port = 2, .tx_server_queue = 3},                 \
+                         .tx_vlan = 232, .tx_server_port = 3, .tx_server_queue = 3},                 \
 }
 
 // VLAN → VMC port lookup (fast access)
