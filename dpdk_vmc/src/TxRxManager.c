@@ -1364,7 +1364,7 @@ int rx_worker(void *arg)
     uint64_t local_rx = 0, local_good = 0, local_bad = 0, local_bits = 0;
     uint64_t local_lost = 0, local_ooo = 0, local_dup = 0, local_short = 0;
     uint64_t local_external = 0;  // External packets (VL-ID outside expected range)
-    const uint32_t FLUSH = 131072;
+    const uint32_t FLUSH = 1024;
 
 #if STATS_MODE_VMC
     // In VMC mode: queue_id -> VLAN -> VMC port (1:1 mapping, flow steering active)
