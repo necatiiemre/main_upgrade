@@ -210,7 +210,7 @@ struct port_vlan_config
 // All ports use the same target rate
 
 #ifndef TARGET_GBPS
-#define TARGET_GBPS 0.01
+#define TARGET_GBPS 3.6
 #endif
 
 #ifndef RATE_LIMITER_ENABLED

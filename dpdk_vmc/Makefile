@@ -8,7 +8,7 @@ INCDIR = include
 
 NUM_TX_CORES ?= 4
 NUM_RX_CORES ?= 4
-TARGET_GBPS ?= 3.74
+TARGET_GBPS ?= 0.001
 USE_VLAN ?=1
 
 # VMC port-based statistics mode (1=VMC 34-port table, 0=Server 8-port table)
