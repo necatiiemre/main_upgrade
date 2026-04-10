@@ -45,6 +45,35 @@
 #define LATENCY_TEST_PACKET_SIZE 1518 // Test packet size (MAX)
 
 // ==========================================
+// PACKET LIMIT TEST MODE (Fixed per-VL packet count)
+// ==========================================
+// When enabled, each TX VL-IDX transmits EXACTLY PACKET_LIMIT_PER_VL packets
+// and then stops. The application shuts down once all VL-IDXs across all
+// ports have finished sending. This is useful for deterministic end-to-end
+// packet count / loss verification tests.
+//
+// Example with PACKET_LIMIT_PER_VL = 100 and per-queue VL counts {10, 6, 10, 6}:
+//   Port 0 Q0: 10 VL × 100 = 1000 packets
+//   Port 0 Q1:  6 VL × 100 =  600 packets
+//   Port 0 Q2: 10 VL × 100 = 1000 packets
+//   Port 0 Q3:  6 VL × 100 =  600 packets
+//   Port 0 Total              = 3200 packets
+//
+// 0 = disabled (normal continuous TX)
+// 1 = enabled  (fixed per-VL packet count, then stop)
+
+#ifndef PACKET_LIMIT_TEST_ENABLED
+#define PACKET_LIMIT_TEST_ENABLED 0
+#endif
+
+#ifndef PACKET_LIMIT_PER_VL
+#define PACKET_LIMIT_PER_VL 100
+#endif
+
+// Wait time (ms) after all VLs finish, for RX counters to flush before exit
+#define PACKET_LIMIT_WAIT_FOR_RX_FLUSH_MS 5000
+
+// ==========================================
 // IMIX (Internet Mix) CONFIGURATION
 // ==========================================
 // Custom IMIX profile: Distribution of different packet sizes

@@ -1123,6 +1123,97 @@ static void init_tx_test_counters(void)
            TX_WAIT_FOR_RX_FLUSH_MS);
 }
 
+#if PACKET_LIMIT_TEST_ENABLED
+// ==========================================
+// PACKET LIMIT TEST MODE (per-VL-IDX fixed packet count)
+// ==========================================
+// When enabled, each TX VL-IDX transmits EXACTLY PACKET_LIMIT_PER_VL packets
+// and then stops. Once every VL-IDX across all ports has reached the limit,
+// the application shuts down.
+
+// Per-port, per-VL-ID atomic counter (bytes sent will be ignored; packets counted)
+static rte_atomic64_t vl_tx_limit_counters[MAX_PORTS][MAX_VL_ID + 1];
+
+// Shutdown flag (compare-and-swap so only one worker triggers the final stop)
+static volatile int packet_limit_shutdown_triggered = 0;
+
+// Initialize per-VL packet limit counters
+static void init_packet_limit_counters(void)
+{
+    for (int p = 0; p < MAX_PORTS; p++)
+    {
+        for (int vl = 0; vl <= MAX_VL_ID; vl++)
+        {
+            rte_atomic64_init(&vl_tx_limit_counters[p][vl]);
+        }
+    }
+    packet_limit_shutdown_triggered = 0;
+    printf("Packet Limit Test Mode: ENABLED - each VL-IDX will send exactly %u packets\n",
+           (unsigned)PACKET_LIMIT_PER_VL);
+    printf("Packet Limit Test Mode: Will wait %d ms for RX to flush after last packet\n",
+           PACKET_LIMIT_WAIT_FOR_RX_FLUSH_MS);
+}
+
+// Print a startup table summarizing per-port / per-J-connector packet budgets
+static void print_packet_limit_table(void)
+{
+    printf("\n");
+    printf("==============================================================================\n");
+    printf("  PACKET LIMIT TEST MODE - Fixed packet count per VL-IDX: %u packets\n",
+           (unsigned)PACKET_LIMIT_PER_VL);
+    printf("==============================================================================\n");
+    printf("  SrvPort | J-Label | Queue | TX VLAN | VL-ID Range      | #VL-IDX | Packets\n");
+    printf("  --------+---------+-------+---------+------------------+---------+---------\n");
+
+    uint64_t grand_total = 0;
+    for (int port = 0; port < MAX_PORTS_CONFIG && port < MAX_PORTS; port++)
+    {
+        uint16_t queue_count = port_vlans[port].tx_vlan_count;
+        if (queue_count == 0)
+            continue;
+        // Only queues [0, NUM_TX_CORES) actually have TX workers
+        if (queue_count > NUM_TX_CORES)
+            queue_count = NUM_TX_CORES;
+
+        uint64_t port_total_pkts = 0;
+        uint64_t port_total_vl   = 0;
+
+        for (int q = 0; q < queue_count; q++)
+        {
+            uint16_t vl_start = port_vlans[port].tx_vl_ids[q];
+            uint16_t vl_count = port_vlans[port].tx_vl_counts[q];
+            if (vl_count == 0)
+                vl_count = VL_RANGE_SIZE_PER_QUEUE;
+            uint16_t vl_end = vl_start + vl_count;
+            uint64_t q_packets = (uint64_t)vl_count * (uint64_t)PACKET_LIMIT_PER_VL;
+
+            port_total_pkts += q_packets;
+            port_total_vl   += vl_count;
+
+            // VMC index mapping: VMC idx = port * 4 + queue (see VMC_PORT_MAP_INIT)
+            int vmc_idx = port * 4 + q;
+            const char *j_label = (vmc_idx >= 0 && vmc_idx < VMC_PORT_COUNT)
+                                      ? vmc_port_labels[vmc_idx]
+                                      : "?";
+
+            printf("    %2d   |  %-6s |   %u   |   %3u   | [%4u..%4u)    |  %4u   | %8lu\n",
+                   port, j_label, q, port_vlans[port].tx_vlans[q],
+                   vl_start, vl_end, vl_count, q_packets);
+        }
+        printf("  --------+---------+-------+---------+------------------+---------+---------\n");
+        printf("    %2d   |  TOTAL  |       |         |                  |  %4lu   | %8lu\n",
+               port, port_total_vl, port_total_pkts);
+        printf("  --------+---------+-------+---------+------------------+---------+---------\n");
+
+        grand_total += port_total_pkts;
+    }
+    printf("    ALL  | GRAND TOTAL PACKETS (all ports, all VL-IDX)      |         | %8lu\n",
+           grand_total);
+    printf("==============================================================================\n");
+    printf("\n");
+}
+#endif /* PACKET_LIMIT_TEST_ENABLED */
+
 int tx_worker(void *arg)
 {
     struct tx_worker_params *params = (struct tx_worker_params *)arg;
@@ -1226,6 +1317,11 @@ int tx_worker(void *arg)
            TX_SKIP_EVERY_N_PACKETS, TX_MAX_PACKETS_PER_PORT);
 #endif
 
+#if PACKET_LIMIT_TEST_ENABLED
+    printf("  PACKET LIMIT TEST MODE: Each VL-IDX will send exactly %u packets then stop\n",
+           (unsigned)PACKET_LIMIT_PER_VL);
+#endif
+
     // Current VL-ID index (cycles through entire range)
     uint16_t current_vl_offset = 0; // 0 to (vl_range_size - 1)
 
@@ -1320,6 +1416,49 @@ int tx_worker(void *arg)
 #else
         uint16_t curr_vl = vl_start + current_vl_offset;
 
+#if PACKET_LIMIT_TEST_ENABLED
+        // Packet limit test: skip VL-IDs that have already reached PACKET_LIMIT_PER_VL.
+        // Advance current_vl_offset until we find a VL still below the limit, or
+        // conclude that every VL in this queue's range has finished.
+        {
+            uint16_t checked = 0;
+            bool found = false;
+            while (checked < vl_range_size)
+            {
+                int64_t cnt = rte_atomic64_read(&vl_tx_limit_counters[params->port_id][curr_vl]);
+                if (cnt < (int64_t)PACKET_LIMIT_PER_VL)
+                {
+                    found = true;
+                    break;
+                }
+                current_vl_offset++;
+                if (current_vl_offset >= vl_range_size)
+                    current_vl_offset = 0;
+                curr_vl = vl_start + current_vl_offset;
+                checked++;
+            }
+            if (!found)
+            {
+                // Every VL-IDX in this worker's queue has hit the limit.
+                // Free the mbuf we just allocated and trigger shutdown exactly once.
+                rte_pktmbuf_free(pkt);
+                if (__sync_val_compare_and_swap(&packet_limit_shutdown_triggered, 0, 1) == 0)
+                {
+                    printf("\n========================================\n");
+                    printf("[PACKET LIMIT] Port %u Queue %u: all VL-IDX reached %u packet limit\n",
+                           params->port_id, params->queue_id, (unsigned)PACKET_LIMIT_PER_VL);
+                    printf("Waiting %d ms for RX counters to flush...\n",
+                           PACKET_LIMIT_WAIT_FOR_RX_FLUSH_MS);
+                    printf("========================================\n");
+                    rte_delay_ms(PACKET_LIMIT_WAIT_FOR_RX_FLUSH_MS);
+                    printf("[PACKET LIMIT] RX flush wait complete. Stopping all workers...\n");
+                    *((volatile bool *)params->stop_flag) = true;
+                }
+                break;
+            }
+        }
+#endif /* PACKET_LIMIT_TEST_ENABLED */
+
         // Peek sequence WITHOUT incrementing — only commit after successful send
         uint64_t seq = peek_tx_sequence(params->port_id, curr_vl);
 #endif
@@ -1365,6 +1504,10 @@ int tx_worker(void *arg)
         {
             // Increment sequence only after packet is successfully sent
             commit_tx_sequence(params->port_id, curr_vl);
+#if PACKET_LIMIT_TEST_ENABLED
+            // Count this VL-IDX's transmitted packet for the fixed-count test
+            rte_atomic64_inc(&vl_tx_limit_counters[params->port_id][curr_vl]);
+#endif
         }
         else
         {
@@ -1870,6 +2013,12 @@ int start_txrx_workers(struct ports_config *ports_config, volatile bool *stop_fl
 #if TX_TEST_MODE_ENABLED
     // Initialize TX test mode counters
     init_tx_test_counters();
+#endif
+
+#if PACKET_LIMIT_TEST_ENABLED
+    // Initialize per-VL-IDX packet limit counters and print the budget table
+    init_packet_limit_counters();
+    print_packet_limit_table();
 #endif
 
     static struct tx_worker_params tx_params[MAX_PORTS * NUM_TX_CORES];
