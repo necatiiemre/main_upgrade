@@ -104,8 +104,16 @@ bool PsuTelemetryPublisher::start() {
     m_running.store(true);
     m_thread = std::thread(&PsuTelemetryPublisher::run, this);
 
-    DEBUG_LOG("PSU-TELEM: publisher started -> " << m_dst_host << ":" << m_dst_port
-              << " every " << m_interval_ms << "ms");
+    // Always-visible (not DEBUG_LOG) so we can confirm start/host/port from
+    // the console without rebuilding with DEBUG_PRINT=1.
+    {
+        char dotted[INET_ADDRSTRLEN] = {0};
+        inet_ntop(AF_INET, &dst.sin_addr, dotted, sizeof(dotted));
+        ErrorPrinter::info("PSU-TELEM",
+            std::string("publisher started -> ") + dotted + ":" +
+            std::to_string(m_dst_port) + " every " +
+            std::to_string(m_interval_ms) + "ms");
+    }
     return true;
 }
 
@@ -127,8 +135,9 @@ void PsuTelemetryPublisher::stop() {
         ::close(m_sockfd);
         m_sockfd = -1;
     }
-    DEBUG_LOG("PSU-TELEM: publisher stopped. sent=" << m_packets_sent.load()
-              << " errors=" << m_errors.load());
+    ErrorPrinter::info("PSU-TELEM",
+        "publisher stopped. sent=" + std::to_string(m_packets_sent.load()) +
+        " errors=" + std::to_string(m_errors.load()));
 }
 
 void PsuTelemetryPublisher::run() {
@@ -201,7 +210,14 @@ void PsuTelemetryPublisher::run() {
         if (m_sockfd >= 0) {
             ssize_t n = ::send(m_sockfd, &pkt, sizeof(pkt), MSG_DONTWAIT);
             if (n == static_cast<ssize_t>(sizeof(pkt))) {
-                m_packets_sent.fetch_add(1, std::memory_order_relaxed);
+                uint32_t before = m_packets_sent.fetch_add(1, std::memory_order_relaxed);
+                // Announce first successful send so the operator knows the
+                // pipe is actually live without needing to tcpdump.
+                if (before == 0) {
+                    ErrorPrinter::info("PSU-TELEM",
+                        "first packet sent successfully (" +
+                        std::to_string(sizeof(pkt)) + " bytes)");
+                }
             } else {
                 m_errors.fetch_add(1, std::memory_order_relaxed);
                 // Only log the first few errors to avoid spamming logs
@@ -209,7 +225,8 @@ void PsuTelemetryPublisher::run() {
                 uint32_t e = m_errors.load(std::memory_order_relaxed);
                 if (e <= 3) {
                     ErrorPrinter::warn("PSU-TELEM",
-                        std::string("send failed: ") + std::strerror(errno));
+                        std::string("send failed (errno=") +
+                        std::to_string(errno) + " " + std::strerror(errno) + ")");
                 }
             }
         }
