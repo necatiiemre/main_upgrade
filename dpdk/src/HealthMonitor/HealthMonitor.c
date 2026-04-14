@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "HealthMonitor.h"
+#include "PsuTelemetryReceiver.h"   // psu_telem_print_table() - appended to health block
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -458,6 +459,12 @@ static void health_print_tables(const struct health_cycle_data *cycle)
     printf("[HEALTH] Total responses: %d/%d\n",
            cycle->total_responses_received, HEALTH_MONITOR_EXPECTED_RESPONSES);
     printf("[HEALTH] ================================================\n\n");
+
+    // Power supply readings (voltage / current / power) are pushed to us by
+    // MainSoftware over UDP. Append them to the per-cycle health block so
+    // they're visible alongside the FPGA/MCU tables both on screen and in
+    // the dpdk_app.log that the PDF generator consumes.
+    psu_telem_print_table();
 }
 
 static int get_interface_index(const char *ifname)

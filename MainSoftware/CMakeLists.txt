@@ -32,10 +32,16 @@ set(SOURCES
     src/SerialTimeForwarder.cpp
     src/ReportManager.cpp
     src/SafeShutdown.cpp
+    src/PsuTelemetryPublisher.cpp
 )
+
+# pthread for std::thread (PsuTelemetryPublisher background loop)
+find_package(Threads REQUIRED)
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
 
 # Output setting for build directory
 set_target_properties(${PROJECT_NAME} PROPERTIES

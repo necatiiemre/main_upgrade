@@ -5,6 +5,8 @@
 #include "ReportManager.h"
 #include "SafeShutdown.h"
 #include "ErrorPrinter.h"
+#include "PsuTelemetry.h"
+#include "PsuTelemetryPublisher.h"
 #include <iostream>
 #include <unistd.h>
 #include <iomanip>
@@ -345,6 +347,22 @@ bool Dtn::configureSequence()
     // Record Unit Power On Time when PSU output is enabled
     g_ReportManager.recordUnitPowerOnTime();
 
+    // Start PSU telemetry publisher. Sends V/I/W to the DPDK process every
+    // second over UDP so DPDK can print a power-supply row in its health
+    // table. Also acts as a heartbeat that keeps the PSU TCP connection
+    // alive during long idle periods - fixes the "after 2h the PSU doesn't
+    // turn off" failure mode. RAII: destructor stops it on any return path.
+    PsuTelemetryPublisher psu_publisher(
+        PSUG30,
+        g_ssh_deployer_server.getHost(),
+        PSU_TELEM_PORT);
+    if (!psu_publisher.start()) {
+        ErrorPrinter::warn("PSU-TELEM",
+            "DTN: Failed to start PSU telemetry publisher - "
+            "DPDK will not receive power-supply readings, "
+            "but the test will continue.");
+    }
+
     sleep(2);
     if (!g_cumulus.deployNetworkInterfaces(SSHDeployer::getPrebuiltRoot() + "/CumulusInterfaces/DTNIRSW/interfaces"))
     {
@@ -487,6 +505,11 @@ bool Dtn::configureSequence()
         timeForwarder.stop();
         DEBUG_LOG("DTN: SerialTimeForwarder stopped.");
     }
+
+    // Stop the PSU telemetry publisher BEFORE stopping DPDK so DPDK's final
+    // log lines aren't interleaved with PSU telem warnings. Idempotent, so
+    // the RAII destructor later is a harmless no-op.
+    psu_publisher.stop();
 
     // Stop DPDK on server
     std::cout << "DTN: Stopping DPDK on server..." << std::endl;

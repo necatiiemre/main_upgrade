@@ -21,6 +21,8 @@
 #include "EmbeddedLatency/EmbeddedLatency.h"  // Embedded HW timestamp latency test
 #include "PtpSlave.h"        // PTP slave for IEEE 1588v2 synchronization
 #include "HealthMonitor.h"   // Health monitor for DTN status queries
+#include "PsuTelemetry.h"          // wire format (shared with MainSoftware)
+#include "PsuTelemetryReceiver.h"  // receiver API for MainSoftware UDP pushes
 
 // Enable/disable raw socket ports
 #ifndef ENABLE_RAW_SOCKET_PORTS
@@ -594,6 +596,19 @@ int main(int argc, char const *argv[])
     }
 #endif
 
+    // Start PSU telemetry listener: receives 1 Hz V/I/W packets from
+    // MainSoftware (PC) and makes them available to the health print cycle.
+    // Failure here is non-fatal: the test can still run, DPDK just won't
+    // show a power-supply row in the health table.
+    if (psu_telem_init(PSU_TELEM_PORT) == 0) {
+        if (psu_telem_start(&force_quit) != 0) {
+            printf("Warning: PSU telemetry listener failed to start\n");
+        }
+    } else {
+        printf("Warning: PSU telemetry listener init failed (port %u busy?)\n",
+               (unsigned)PSU_TELEM_PORT);
+    }
+
     printf("\n=== Running (Press Ctrl+C to stop) ===\n");
     printf("  WARM-UP PHASE: First 60 seconds (stats will reset)\n\n");
 
@@ -720,6 +735,9 @@ int main(int argc, char const *argv[])
         stop_health_monitor();
     }
 #endif
+
+    // Stop PSU telemetry listener (idempotent - safe if it never started).
+    psu_telem_stop();
 
 #if ENABLE_RAW_SOCKET_PORTS
     // Stop raw socket workers first (only if initialized)
