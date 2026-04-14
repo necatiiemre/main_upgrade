@@ -377,3 +377,14 @@ std::string DeviceManager::getIdentification(Device device)
         return "";
     }
 }
+
+bool DeviceManager::ping(Device device)
+{
+    TDKLambda::TDKLambdaPSU *psu = getPSU(device);
+    if (!psu) {
+        return false;
+    }
+    // ping() in TDKLambdaPSU already never throws and attempts an internal
+    // reconnect through sendQuery() if the transport is broken.
+    return psu->ping();
+}

@@ -411,6 +411,25 @@ public:
      */
     void setErrorHandler(std::function<void(const std::string&)> handler);
 
+    /**
+     * @brief Lightweight health probe (sends "*IDN?" and expects any reply)
+     * @return true if the PSU responds, false otherwise
+     *
+     * Never throws. Intended for periodic heartbeating during long idle
+     * periods and for detecting stale connections before they are exercised.
+     */
+    bool ping();
+
+    /**
+     * @brief Tear down and re-establish the underlying transport
+     * @return true on successful reconnect + *IDN? handshake
+     *
+     * Idempotent: safe to call on a PSU that is already disconnected.
+     * Used as an automatic recovery step inside sendQuery()/sendCommand()
+     * when the socket is detected as dead.
+     */
+    bool reconnect();
+
 protected:
     std::unique_ptr<ICommunication> m_comm_port;
     PSUConfig m_config;

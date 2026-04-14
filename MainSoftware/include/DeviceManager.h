@@ -57,6 +57,10 @@ public:
     // Get PSU identification
     std::string getIdentification(Device device);
 
+    // Lightweight health probe for the PSU - true if PSU responds to *IDN?
+    // Never throws; used as a heartbeat during long test runs.
+    bool ping(Device device);
+
 private:
     std::vector<Device> m_devices;
     std::vector<Device> m_connectedDevices;

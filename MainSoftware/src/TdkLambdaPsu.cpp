@@ -19,10 +19,15 @@
 #include <cstring>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>   // TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT, TCP_NODELAY
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
 #include <poll.h>
+
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
 
 namespace TDKLambda {
 
@@ -82,6 +87,25 @@ public:
                              std::to_string(m_config.tcp_port));
         }
 
+        // Enable TCP keepalive so silent peer drops surface as a real error
+        // within ~60 seconds instead of leaving us with a half-open socket.
+        // Critical for long tests (2h+) where the PSU sits idle.
+        {
+            int yes = 1;
+            setsockopt(m_sockfd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes));
+
+            int keepidle  = 30;  // Start probing after 30s of idle
+            int keepintvl = 10;  // Probe every 10s
+            int keepcnt   = 3;   // 3 failed probes -> socket errored
+            setsockopt(m_sockfd, IPPROTO_TCP, TCP_KEEPIDLE,  &keepidle,  sizeof(keepidle));
+            setsockopt(m_sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+            setsockopt(m_sockfd, IPPROTO_TCP, TCP_KEEPCNT,   &keepcnt,   sizeof(keepcnt));
+
+            // Disable Nagle: SCPI is a small request/response protocol.
+            int nodelay = 1;
+            setsockopt(m_sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay));
+        }
+
         m_is_open = true;
     }
 
@@ -90,9 +114,19 @@ public:
             throw PSUException("TCP port is not open");
         }
 
-        ssize_t result = send(m_sockfd, data.c_str(), data.length(), 0);
+        // MSG_NOSIGNAL prevents SIGPIPE when the peer has silently dropped the
+        // connection (e.g. after long idle). Without it, writing to a closed
+        // socket would terminate the entire process with no error message.
+        ssize_t result = send(m_sockfd, data.c_str(), data.length(), MSG_NOSIGNAL);
         if (result < 0) {
-            throw PSUException("Failed to send data over TCP");
+            int err = errno;
+            // Mark the port as broken so upper layers can reconnect
+            m_is_open = false;
+            if (m_sockfd >= 0) {
+                ::close(m_sockfd);
+                m_sockfd = -1;
+            }
+            throw PSUException(std::string("TCP send failed: ") + std::strerror(err));
         }
 
         return static_cast<size_t>(result);
@@ -130,9 +164,24 @@ public:
                         break;
                     }
                 } else if (bytes_read == 0) {
-                    // Connection closed
+                    // Connection closed cleanly by peer
+                    m_is_open = false;
+                    if (m_sockfd >= 0) { ::close(m_sockfd); m_sockfd = -1; }
                     throw PSUException("TCP connection closed by remote host");
+                } else {
+                    // recv error (ECONNRESET, ETIMEDOUT, etc.) - socket is dead
+                    int err = errno;
+                    if (err != EAGAIN && err != EWOULDBLOCK && err != EINTR) {
+                        m_is_open = false;
+                        if (m_sockfd >= 0) { ::close(m_sockfd); m_sockfd = -1; }
+                        throw PSUException(std::string("TCP recv failed: ") + std::strerror(err));
+                    }
                 }
+            } else if (poll_result < 0 && errno != EINTR) {
+                int err = errno;
+                m_is_open = false;
+                if (m_sockfd >= 0) { ::close(m_sockfd); m_sockfd = -1; }
+                throw PSUException(std::string("TCP poll failed: ") + std::strerror(err));
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -530,7 +579,20 @@ std::string TDKLambdaPSU::sendCommand(const std::string& command) {
         cmd += '\n';
     }
 
-    m_comm_port->write(cmd);
+    // First attempt; on transport failure try one transparent reconnect+retry.
+    try {
+        m_comm_port->write(cmd);
+    } catch (const PSUException& first) {
+        if (!reconnect()) {
+            throw;
+        }
+        try {
+            m_comm_port->write(cmd);
+        } catch (const PSUException&) {
+            // Fall through with the original error - caller sees a single failure
+            throw first;
+        }
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     return "OK";
@@ -546,11 +608,70 @@ std::string TDKLambdaPSU::sendQuery(const std::string& query) const {
         cmd += '\n';
     }
 
-    m_comm_port->write(cmd);
+    // First attempt; on transport failure try one transparent reconnect+retry.
+    // sendQuery is const by contract but reconnect()/write() mutate transport
+    // state - that's an internal implementation detail, not observable state.
+    auto* self = const_cast<TDKLambdaPSU*>(this);
+    try {
+        m_comm_port->write(cmd);
+    } catch (const PSUException& first) {
+        if (!self->reconnect()) {
+            throw;
+        }
+        try {
+            m_comm_port->write(cmd);
+        } catch (const PSUException&) {
+            throw first;
+        }
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     std::string response = m_comm_port->read(m_config.timeout_ms);
     return trim(response);
+}
+
+bool TDKLambdaPSU::ping() {
+    try {
+        std::string id = sendQuery("*IDN?");
+        return !id.empty();
+    } catch (...) {
+        return false;
+    }
+}
+
+bool TDKLambdaPSU::reconnect() {
+    // Tear down current transport (idempotent).
+    try {
+        if (m_comm_port) {
+            m_comm_port->close();
+        }
+    } catch (...) {
+        // Ignore close errors - we're about to open a fresh socket.
+    }
+    m_connected = false;
+
+    // Re-open and handshake. A fresh TcpPort was created in the constructor;
+    // open() on it creates a new socket, so this works even after close().
+    try {
+        m_comm_port->open();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        // Validate with *IDN? - go directly through the transport to avoid
+        // the reconnect wrapping in sendQuery().
+        std::string cmd = "*IDN?\n";
+        m_comm_port->write(cmd);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::string resp = m_comm_port->read(m_config.timeout_ms);
+        if (trim(resp).empty()) {
+            return false;
+        }
+
+        m_connected = true;
+        return true;
+    } catch (const std::exception&) {
+        m_connected = false;
+        return false;
+    }
 }
 
 void TDKLambdaPSU::setErrorHandler(std::function<void(const std::string&)> handler) {
