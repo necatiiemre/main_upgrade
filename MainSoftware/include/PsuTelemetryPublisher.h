@@ -19,6 +19,7 @@
 #define PSU_TELEMETRY_PUBLISHER_H
 
 #include "Device.h"
+#include <netinet/in.h>
 #include <atomic>
 #include <cstdint>
 #include <string>
@@ -62,7 +63,11 @@ private:
     uint16_t      m_dst_port;
     uint32_t      m_interval_ms;
 
-    int           m_sockfd;  // connected UDP socket (-1 when closed)
+    int           m_sockfd;  // UDP socket (-1 when closed); NOT connect()ed -
+                             // we use sendto() so each send does its own
+                             // routing/ARP and cached ICMP errors on a
+                             // connected socket don't wedge subsequent sends.
+    sockaddr_in   m_dst_addr;
     std::thread   m_thread;
     std::atomic<bool>     m_running;
     std::atomic<uint32_t> m_packets_sent;

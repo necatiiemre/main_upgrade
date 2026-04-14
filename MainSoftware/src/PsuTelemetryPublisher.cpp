@@ -66,7 +66,9 @@ PsuTelemetryPublisher::PsuTelemetryPublisher(Device device,
       m_running(false),
       m_packets_sent(0),
       m_errors(0),
-      m_seq(0) {}
+      m_seq(0) {
+    std::memset(&m_dst_addr, 0, sizeof(m_dst_addr));
+}
 
 PsuTelemetryPublisher::~PsuTelemetryPublisher() {
     stop();
@@ -75,8 +77,7 @@ PsuTelemetryPublisher::~PsuTelemetryPublisher() {
 bool PsuTelemetryPublisher::start() {
     if (m_running.load()) return true;
 
-    sockaddr_in dst{};
-    if (!resolveHost(m_dst_host, m_dst_port, &dst)) {
+    if (!resolveHost(m_dst_host, m_dst_port, &m_dst_addr)) {
         ErrorPrinter::warn("PSU-TELEM",
             "Failed to resolve destination host: " + m_dst_host);
         return false;
@@ -89,16 +90,13 @@ bool PsuTelemetryPublisher::start() {
         return false;
     }
 
-    // connect() on a UDP socket just pins the default destination. sendto()
-    // wouldn't need it, but connect() lets us use send() and also surfaces
-    // ICMP "port unreachable" as EHOSTUNREACH/ECONNREFUSED on later sends,
-    // which is useful for diagnostics.
-    if (::connect(fd, reinterpret_cast<sockaddr*>(&dst), sizeof(dst)) < 0) {
-        ErrorPrinter::warn("PSU-TELEM",
-            std::string("connect() failed: ") + std::strerror(errno));
-        ::close(fd);
-        return false;
-    }
+    // NOTE: We intentionally do NOT connect() this socket. On a connected
+    // UDP socket the kernel remembers the last ICMP error (e.g. host
+    // unreachable during a transient ARP failure) and reports it on the
+    // NEXT send() as EHOSTUNREACH/ECONNREFUSED - which then keeps firing
+    // until the ICMP error cache expires, wedging publishing for minutes.
+    // With an unconnected socket + sendto() each send makes its own
+    // routing/ARP decision and a transient failure only drops one packet.
 
     m_sockfd = fd;
     m_running.store(true);
@@ -108,11 +106,11 @@ bool PsuTelemetryPublisher::start() {
     // the console without rebuilding with DEBUG_PRINT=1.
     {
         char dotted[INET_ADDRSTRLEN] = {0};
-        inet_ntop(AF_INET, &dst.sin_addr, dotted, sizeof(dotted));
+        inet_ntop(AF_INET, &m_dst_addr.sin_addr, dotted, sizeof(dotted));
         ErrorPrinter::info("PSU-TELEM",
             std::string("publisher started -> ") + dotted + ":" +
             std::to_string(m_dst_port) + " every " +
-            std::to_string(m_interval_ms) + "ms");
+            std::to_string(m_interval_ms) + "ms (unconnected sendto)");
     }
     return true;
 }
@@ -205,10 +203,13 @@ void PsuTelemetryPublisher::run() {
             consec_errors = 0;
         }
 
-        // Send (non-blocking, best-effort). UDP loss is acceptable - the
-        // receiver handles staleness via the seq + timestamp fields.
+        // sendto() (not send()) on an unconnected socket. Non-blocking and
+        // best-effort - UDP loss is acceptable, the receiver handles
+        // staleness via the seq + timestamp fields.
         if (m_sockfd >= 0) {
-            ssize_t n = ::send(m_sockfd, &pkt, sizeof(pkt), MSG_DONTWAIT);
+            ssize_t n = ::sendto(m_sockfd, &pkt, sizeof(pkt), MSG_DONTWAIT,
+                                 reinterpret_cast<sockaddr*>(&m_dst_addr),
+                                 sizeof(m_dst_addr));
             if (n == static_cast<ssize_t>(sizeof(pkt))) {
                 uint32_t before = m_packets_sent.fetch_add(1, std::memory_order_relaxed);
                 // Announce first successful send so the operator knows the
@@ -219,14 +220,35 @@ void PsuTelemetryPublisher::run() {
                         std::to_string(sizeof(pkt)) + " bytes)");
                 }
             } else {
-                m_errors.fetch_add(1, std::memory_order_relaxed);
-                // Only log the first few errors to avoid spamming logs
-                // for 2h if the server is down.
-                uint32_t e = m_errors.load(std::memory_order_relaxed);
-                if (e <= 3) {
+                int saved_errno = errno;
+                uint32_t e = m_errors.fetch_add(1, std::memory_order_relaxed) + 1;
+
+                // Log the first few errors to surface the root cause; after
+                // that log one summary line per minute so a 2h test doesn't
+                // spam the console but operator still knows it's ongoing.
+                if (e <= 3 || (e % 60 == 0)) {
                     ErrorPrinter::warn("PSU-TELEM",
-                        std::string("send failed (errno=") +
-                        std::to_string(errno) + " " + std::strerror(errno) + ")");
+                        std::string("sendto failed (errno=") +
+                        std::to_string(saved_errno) + " " +
+                        std::strerror(saved_errno) +
+                        ", total_errors=" + std::to_string(e) + ")");
+                }
+
+                // Transient routing/ARP failures (EHOSTUNREACH, ENETUNREACH)
+                // can pin a previously-learned bad state on the socket;
+                // recreate it so the next sendto() starts fresh.
+                if (saved_errno == EHOSTUNREACH || saved_errno == ENETUNREACH ||
+                    saved_errno == ENOTCONN || saved_errno == EPIPE) {
+                    ::close(m_sockfd);
+                    int nfd = ::socket(AF_INET, SOCK_DGRAM, 0);
+                    if (nfd >= 0) {
+                        m_sockfd = nfd;
+                    } else {
+                        m_sockfd = -1;
+                        ErrorPrinter::warn("PSU-TELEM",
+                            std::string("socket re-create failed: ") +
+                            std::strerror(errno));
+                    }
                 }
             }
         }
