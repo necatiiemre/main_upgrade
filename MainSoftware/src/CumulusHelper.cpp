@@ -1965,8 +1965,11 @@ bool CumulusHelper::fetchBridgeVlanState(std::vector<BridgeVlanEntry>& out)
 {
     out.clear();
     std::string output;
+    // sshpass/non-login shells on Cumulus don't include /sbin in PATH, so
+    // 'bridge' isn't found by name. Inline PATH prefix fixes this for
+    // just this one command without touching the user's profile.
     if (!g_ssh_deployer_cumulus.execute(
-            "bridge -j vlan show",
+            "PATH=/sbin:/usr/sbin:$PATH bridge -j vlan show",
             &output, /*use_sudo=*/false, /*silent=*/true))
     {
         DEBUG_LOG(getLogPrefix() << " bridge -j vlan show: SSH failed");
@@ -2011,19 +2014,32 @@ bool CumulusHelper::executeBatch(const std::vector<std::string>& commands,
 {
     if (commands.empty()) return true;
 
-    // Build a single shell script: `set -e` aborts on first failure so we
-    // don't keep hammering a misconfigured switch, and so the overall ssh
-    // exits non-zero if any sub-command fails (preserves caller contract).
-    std::ostringstream script;
-    script << "set -e\n";
+    // Wrap the whole batch in `sh -c '...'` for two reasons:
+    //  1) If use_sudo=true, SSHDeployer will turn this into
+    //     `echo <pw> | sudo -S sh -c '...'`. Sudo sees exactly ONE exec
+    //     target (sh); without this wrapping sudo tries to run `set -e`
+    //     as a binary and fails with "sudo: set: command not found"
+    //     (set is a shell builtin, not a program).
+    //  2) `set -e` then runs *inside* that shell, properly aborting the
+    //     batch on the first failed command.
+    //
+    // Also prepend PATH=/sbin:/usr/sbin so tools that live outside the
+    // interactive PATH (bridge, ip on Cumulus) resolve. The inline
+    // `;` separator keeps the whole script on a single line, which is
+    // what ssh's double-quoted argument handles cleanly.
+    //
+    // Safety: we build single-quoted `'...'` around the body, so nothing
+    // inside the body can be re-interpreted by the outer shell. Callers
+    // must avoid raw single-quote characters in their commands; our
+    // generated `bridge vlan add ...` strings never contain them.
+    std::ostringstream body;
+    body << "export PATH=/sbin:/usr/sbin:/bin:/usr/bin:$PATH";
+    body << "; set -e";
     for (const auto& cmd : commands) {
-        script << cmd << "\n";
+        body << "; " << cmd;
     }
+    std::string wrapped = "sh -c '" + body.str() + "'";
 
-    // execute() wraps the whole string in double quotes when it builds the
-    // ssh command. Any embedded '"' in individual commands would break that;
-    // our commands are bridge/ip style and don't contain quotes, so this
-    // simple form is safe. If callers ever need quotes they should escape.
-    return g_ssh_deployer_cumulus.execute(script.str(), nullptr,
+    return g_ssh_deployer_cumulus.execute(wrapped, nullptr,
                                           use_sudo, /*silent=*/true);
 }
