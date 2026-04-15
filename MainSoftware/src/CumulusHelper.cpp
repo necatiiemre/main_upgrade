@@ -8,6 +8,7 @@
 #include <sstream>
 #include <cctype>
 #include <algorithm>
+#include <regex>
 #include <vector>
 
 // Global instance
@@ -32,6 +33,16 @@ std::string rtrim(const std::string& s) {
     return s.substr(start, end - start);
 }
 
+// Extract the first 32-hex-char token from a string. Used to pull the md5
+// hash out of output that may be contaminated with SSH login banners,
+// shell prompts, MOTDs etc. Returns empty if nothing hex-32-shaped found.
+std::string extractMd5Hash(const std::string& s) {
+    static const std::regex md5_re("\\b[0-9a-fA-F]{32}\\b");
+    std::smatch m;
+    if (std::regex_search(s, m, md5_re)) return m.str();
+    return "";
+}
+
 // Compute MD5 of a local file by shelling out to md5sum - the binary is
 // always present on Linux and we already rely on it on the remote side.
 // Returns empty string on error.
@@ -46,7 +57,11 @@ std::string localFileMd5(const std::string& path) {
     if (!result.success) {
         return "";
     }
-    return rtrim(result.output);
+    // Use the same hex-extraction as the remote side - popen shouldn't pick
+    // up banners locally, but being consistent costs nothing and guards
+    // against future surprises (custom PROMPT_COMMAND etc).
+    std::string hash = extractMd5Hash(result.output);
+    return hash.empty() ? rtrim(result.output) : hash;
 }
 
 // Parse the JSON produced by `bridge -j vlan show` into a flat entry list.
@@ -1949,10 +1964,14 @@ bool CumulusHelper::isRemoteInterfacesFileUpToDate(const std::string& local_inte
             "md5 check: SSH failed to read remote md5");
         return false;
     }
-    std::string remote_md5 = rtrim(remote_output);
+    // Cumulus SSH prints a login banner ("Debian GNU/Linux 10") before the
+    // command output, so rtrim() alone leaves us with banner + hash + path
+    // and breaks string comparison. Pull just the 32-hex token out.
+    std::string remote_md5 = extractMd5Hash(remote_output);
     if (remote_md5.empty()) {
         ErrorPrinter::warn("CUMULUS",
-            "md5 check: remote md5sum returned empty");
+            "md5 check: could not extract hash from remote output: '" +
+            rtrim(remote_output) + "'");
         return false;
     }
 
