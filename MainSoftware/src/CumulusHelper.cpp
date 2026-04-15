@@ -1935,8 +1935,8 @@ bool CumulusHelper::isRemoteInterfacesFileUpToDate(const std::string& local_inte
 {
     std::string local_md5 = localFileMd5(local_interfaces_path);
     if (local_md5.empty()) {
-        DEBUG_LOG(getLogPrefix() << " md5 check: cannot hash local file "
-                                 << local_interfaces_path);
+        ErrorPrinter::warn("CUMULUS",
+            "md5 check: cannot hash local file '" + local_interfaces_path + "'");
         return false;
     }
 
@@ -1945,19 +1945,28 @@ bool CumulusHelper::isRemoteInterfacesFileUpToDate(const std::string& local_inte
             "md5sum /etc/network/interfaces | awk '{print $1}'",
             &remote_output, /*use_sudo=*/false, /*silent=*/true))
     {
-        DEBUG_LOG(getLogPrefix() << " md5 check: SSH failed to read remote md5");
+        ErrorPrinter::warn("CUMULUS",
+            "md5 check: SSH failed to read remote md5");
         return false;
     }
     std::string remote_md5 = rtrim(remote_output);
     if (remote_md5.empty()) {
-        DEBUG_LOG(getLogPrefix() << " md5 check: remote md5sum returned empty");
+        ErrorPrinter::warn("CUMULUS",
+            "md5 check: remote md5sum returned empty");
         return false;
     }
 
     bool match = (local_md5 == remote_md5);
-    DEBUG_LOG(getLogPrefix() << " md5 check: local=" << local_md5
-                             << " remote=" << remote_md5
-                             << " match=" << (match ? "yes" : "no"));
+    // Always visible so the operator can see exactly what each side hashes to
+    // when the skip path doesn't engage. Includes the resolved local path
+    // because a lot of grief has come from multiple copies of the file at
+    // different roots (dev vs portable layout).
+    ErrorPrinter::info("CUMULUS",
+        std::string("md5 check: ") +
+        (match ? "MATCH (skip deploy)" : "MISMATCH (will deploy)") +
+        " local=" + local_md5 +
+        " remote=" + remote_md5 +
+        " path=" + local_interfaces_path);
     return match;
 }
 
