@@ -119,7 +119,7 @@ iface swp9s1
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 98 
+    bridge-vids 98
     bridge-pvid 226
     link-speed 1000
     link-autoneg off
@@ -129,7 +129,7 @@ iface swp9s2
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 99 
+    bridge-vids 99
     bridge-pvid 227
     link-speed 1000
     link-autoneg off
@@ -139,7 +139,7 @@ iface swp9s3
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 100 
+    bridge-vids 100
     bridge-pvid 228
     link-speed 1000
     link-autoneg off
@@ -149,7 +149,7 @@ iface swp10s0
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 101 
+    bridge-vids 101
     bridge-pvid 229
     link-speed 1000
     link-autoneg off
@@ -159,7 +159,7 @@ iface swp10s1
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 102 
+    bridge-vids 102
     bridge-pvid 230
     link-speed 1000
     link-autoneg off
@@ -169,7 +169,7 @@ iface swp10s2
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 103 
+    bridge-vids 103
     bridge-pvid 231
     link-speed 1000
     link-autoneg off
@@ -179,7 +179,7 @@ iface swp10s3
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 104 
+    bridge-vids 104
     bridge-pvid 232
     link-speed 1000
     link-autoneg off
@@ -189,7 +189,7 @@ iface swp11s0
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 105 
+    bridge-vids 105
     bridge-pvid 233
     link-speed 1000
     link-autoneg off
@@ -199,7 +199,7 @@ iface swp11s1
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 106 
+    bridge-vids 106
     bridge-pvid 234
     link-speed 1000
     link-autoneg off
@@ -209,7 +209,7 @@ iface swp11s2
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 107 
+    bridge-vids 107
     bridge-pvid 235
     link-speed 1000
     link-autoneg off
@@ -219,7 +219,7 @@ iface swp11s3
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 108 
+    bridge-vids 108
     bridge-pvid 236
     link-speed 1000
     link-autoneg off
@@ -229,7 +229,7 @@ iface swp12s0
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 109  
+    bridge-vids 109
     bridge-pvid 237
     link-speed 1000
     link-autoneg off
@@ -239,7 +239,7 @@ iface swp12s1
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 110 
+    bridge-vids 110
     bridge-pvid 238
     link-speed 1000
     link-autoneg off
@@ -249,7 +249,7 @@ iface swp12s2
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 111 
+    bridge-vids 111
     bridge-pvid 239
     link-speed 1000
     link-autoneg off
@@ -259,7 +259,7 @@ iface swp12s3
     mtu 1500
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 112 
+    bridge-vids 112
     bridge-pvid 240
     link-speed 1000
     link-autoneg off
@@ -268,7 +268,7 @@ auto swp13
 iface swp13
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 97 98 99 100 225 226 227 228 
+    bridge-vids 97 98 99 100 225 226 227 228
     bridge-pvid 49
     link-speed 100000
     link-autoneg off
@@ -277,7 +277,7 @@ auto swp14
 iface swp14
     ip6-forward off
     disable-ipv6 yes
-    bridge-vids 101 102 103 104 229 230 231 232 
+    bridge-vids 101 102 103 104 229 230 231 232
     bridge-pvid 50
     link-speed 100000
     link-autoneg off
@@ -609,7 +609,7 @@ iface swp32s3
 
 auto br_default
 iface br_default
-    bridge-ports swp13 swp14 swp15 swp16 swp17 swp18 swp19 swp20 swp9s0 swp9s1 swp9s2 swp9s3  swp10s0 swp10s1 swp10s2 swp10s3  swp11s0 swp11s1 swp11s2 swp11s3 swp12s0 swp12s1 swp12s2 swp12s3 
+    bridge-ports swp13 swp14 swp15 swp16 swp17 swp18 swp19 swp20 swp9s0 swp9s1 swp9s2 swp9s3  swp10s0 swp10s1 swp10s2 swp10s3  swp11s0 swp11s1 swp11s2 swp11s3 swp12s0 swp12s1 swp12s2 swp12s3
     bridge-vlan-aware yes
     bridge-vids 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144
     bridge-pvid 1
