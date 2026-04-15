@@ -5,6 +5,26 @@
 #include <vector>
 
 /**
+ * @brief One row of "bridge vlan show" state.
+ *
+ * Used both as "expected" (what configureSequence* wants the switch to look
+ * like) and "actual" (what we parse back from the switch) so the two can be
+ * diffed cheaply before issuing any configuration commands.
+ */
+struct BridgeVlanEntry {
+    std::string interface;
+    int         vlan_id;
+    bool        egress_untagged;   // "Egress Untagged" flag set
+    bool        pvid;              // "PVID" flag set (ingress untagged)
+
+    BridgeVlanEntry()
+        : vlan_id(0), egress_untagged(false), pvid(false) {}
+    BridgeVlanEntry(std::string iface, int vid, bool untagged, bool is_pvid = false)
+        : interface(std::move(iface)), vlan_id(vid),
+          egress_untagged(untagged), pvid(is_pvid) {}
+};
+
+/**
  * @brief Helper class for Cumulus switch configuration via SSH (NVUE commands)
  *
  * Usage:
@@ -166,6 +186,50 @@ public:
      * @param use_sudo Run with sudo
      */
     bool execute(const std::string& command, std::string* output = nullptr, bool use_sudo = false);
+
+    // ==================== Idempotent State Checks ====================
+
+    /**
+     * @brief Return the 32-entry expected bridge-vlan state for the DTN unit.
+     * These are the (interface, vlan, egress-untagged) rows that
+     * configureSequence() would normally set up.
+     */
+    static std::vector<BridgeVlanEntry> expectedVlansDtn();
+
+    /**
+     * @brief Return the 16-entry expected bridge-vlan state for the VMC unit.
+     */
+    static std::vector<BridgeVlanEntry> expectedVlansVmc();
+
+    /**
+     * @brief Compare the local interfaces file's MD5 against /etc/network/interfaces
+     *        on the switch. Used to decide whether scp+ifreload can be skipped.
+     * @return true if they match (no deploy needed).
+     */
+    bool isRemoteInterfacesFileUpToDate(const std::string& local_interfaces_path);
+
+    /**
+     * @brief Fetch the full 'bridge -j vlan show' state from the switch and
+     *        parse it into a flat list. One SSH round-trip.
+     * @return false on SSH error or parse failure.
+     */
+    bool fetchBridgeVlanState(std::vector<BridgeVlanEntry>& out);
+
+    /**
+     * @brief True iff every entry in 'expected' is present in 'actual'
+     *        (with matching egress_untagged flag). Extra entries in 'actual'
+     *        are ignored - we don't want to fight whatever else has been
+     *        learned on the bridge.
+     */
+    static bool hasAllExpectedVlans(const std::vector<BridgeVlanEntry>& expected,
+                                    const std::vector<BridgeVlanEntry>& actual);
+
+    /**
+     * @brief Send many shell commands in a single SSH session via heredoc.
+     *        Uses 'set -e' so the first failure aborts the batch.
+     * @return true if the overall session exited with status 0.
+     */
+    bool executeBatch(const std::vector<std::string>& commands, bool use_sudo = false);
 
 private:
     std::string getLogPrefix() const;
