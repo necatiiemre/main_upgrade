@@ -5,9 +5,17 @@
 #include "SafeShutdown.h"
 #include "ErrorPrinter.h"
 #include <iostream>
+#include <csignal>
 
 int main(int argc, char const *argv[])
 {
+    // Ignore SIGPIPE so that writing to a closed TCP socket (e.g. PSU after
+    // long idle or network glitch) surfaces as send()==-1/EPIPE instead of
+    // silently terminating the process. MSG_NOSIGNAL is used on send()s too,
+    // but this is a cheap belt-and-suspenders that also protects any library
+    // code we don't control (scp pipes, SSH, etc.).
+    std::signal(SIGPIPE, SIG_IGN);
+
     // Install signal handlers for safe shutdown (Ctrl+C, SIGTERM)
     SafeShutdown::getInstance().installSignalHandlers();
 
